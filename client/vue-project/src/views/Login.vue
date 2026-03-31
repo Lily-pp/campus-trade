@@ -36,8 +36,8 @@ const handleLogin = async () => {
   }
   
   try {
-    const res = await api.post('/auth/login', form.value)
-    const { token, user } = res.data
+    const res = await api.post('/auth/admin/login', form.value)
+    const { token, user } = res.data.data
     if (!token) {
       ElMessage.error('登录失败：未获取到 token')
       return

@@ -19,8 +19,8 @@
         <el-table-column prop="category_name" label="分类" width="120" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'on_sale' ? 'success' : 'info'">
-              {{ row.status === 'on_sale' ? '出售中' : '待审核' }}
+            <el-tag :type="statusMap[row.status]?.type || 'info'">
+              {{ statusMap[row.status]?.label || row.status }}
             </el-tag>
           </template>
         </el-table-column>
@@ -38,7 +38,7 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="showCreateDialog" title="发布商品" width="500px">
+    <el-dialog v-model="showCreateDialog" title="发布商品" width="500px" @open="fetchCategories">
       <el-form :model="newItem" label-width="80px">
         <el-form-item label="商品名称">
           <el-input v-model="newItem.title" />
@@ -74,24 +74,28 @@ const loading = ref(false)
 const showCreateDialog = ref(false)
 const newItem = ref({ title: '', price: 0, category_id: '', description: '' })
 
+const statusMap = {
+  on_sale: { label: '出售中', type: 'success' },
+  sold: { label: '已售出', type: 'info' },
+  off: { label: '已下架', type: 'warning' }
+}
+
 const fetchItems = async () => {
   loading.value = true
   try {
-    const res = await api.get('/items')
-    // 后端返回的是 { total, data }，所以取 res.data
-    if (res.data && Array.isArray(res.data)) {
-      items.value = res.data
-    } else if (res.data && Array.isArray(res.data.data)) {
-      items.value = res.data.data
-    } else if (Array.isArray(res)) {
-      items.value = res
-    } else {
-      items.value = []
-      console.warn('数据格式不对:', res)
+    const res = await api.get('/items/all')
+    const list = res.data?.data?.list
+
+    if (res.data?.code === 0 && Array.isArray(list)) {
+      items.value = list
+      return
     }
+
+    items.value = []
+    console.warn('商品列表数据格式不对:', res)
   } catch (error) {
     console.error('获取商品失败:', error)
-    ElMessage.error('获取商品失败')
+    ElMessage.error(error.response?.data?.message || '获取商品失败')
   } finally {
     loading.value = false
   }
@@ -100,10 +104,8 @@ const fetchItems = async () => {
 const fetchCategories = async () => {
   try {
     const res = await api.get('/categories')
-    if (Array.isArray(res)) {
-      categories.value = res
-    } else if (res.data && Array.isArray(res.data)) {
-      categories.value = res.data
+    if (res.data?.code === 0 && Array.isArray(res.data.data)) {
+      categories.value = res.data.data
     } else {
       categories.value = []
     }
@@ -120,11 +122,9 @@ const createItem = async () => {
     newItem.value = { title: '', price: 0, category_id: '', description: '' }
     fetchItems()
   } catch (error) {
-  const status = error.response?.status
-  const msg = error.response?.data?.error || '发布失败'
-  console.log('deleteItem error', status, msg)
-  ElMessage.error(msg)
-}
+    const msg = error.response?.data?.message || '发布失败'
+    ElMessage.error(msg)
+  }
 }
 
 const deleteItem = async (item) => {
@@ -146,7 +146,7 @@ const deleteItem = async (item) => {
     if (error === 'cancel') {
       return // 用户取消删除
     }
-    const msg = error.response?.data?.error || '删除失败'
+    const msg = error.response?.data?.message || '删除失败'
     ElMessage.error(msg)
   }
 }
