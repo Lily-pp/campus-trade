@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
+import Login from '@/views/Login.vue'
 
 const routes = [
   {
     path: '/login',
     name: 'login',
-    component: () => import('@/views/Login.vue')
+    component: Login   // 静态导入，避免首次跳转动态加载失败
   },
   {
     path: '/',
@@ -31,6 +32,21 @@ const routes = [
         path: 'users',
         name: 'users',
         component: () => import('@/views/Users.vue')
+      },
+      {
+        path: 'orders',
+        name: 'orders',
+        component: () => import('@/views/Orders.vue')
+      },
+      {
+        path: 'reports',
+        name: 'reports',
+        component: () => import('@/views/Reports.vue')
+      },
+      {
+        path: 'logs',
+        name: 'logs',
+        component: () => import('@/views/Logs.vue')
       }
     ]
   }

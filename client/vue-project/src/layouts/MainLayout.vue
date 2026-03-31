@@ -19,6 +19,18 @@
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
+        <el-menu-item index="/orders">
+          <el-icon><Document /></el-icon>
+          <span>订单管理</span>
+        </el-menu-item>
+        <el-menu-item index="/reports">
+          <el-icon><Warning /></el-icon>
+          <span>举报管理</span>
+        </el-menu-item>
+        <el-menu-item index="/logs">
+          <el-icon><Clock /></el-icon>
+          <span>操作日志</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
@@ -46,7 +58,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { DataLine, Goods, Files, User } from '@element-plus/icons-vue'
+import { DataLine, Goods, Files, User, Document, Warning, Clock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const user = ref(null)
@@ -63,13 +75,20 @@ onMounted(() => {
   }
 })
 
-const handleCommand = (command) => {
+const handleCommand = async (command) => {
   if (command === 'logout') {
-    ElMessageBox.confirm('确定退出登录吗？', '提示').then(() => {
+    try {
+      await ElMessageBox.confirm('确定退出登录吗？', '提示', {
+        confirmButtonText: '确定退出',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      router.push('/login')
-    })
+      await router.push('/login')
+    } catch {
+      // 用户点取消，不做任何处理
+    }
   }
 }
 </script>

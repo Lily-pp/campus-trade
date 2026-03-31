@@ -7,10 +7,21 @@
           <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
+          <el-input
+            v-model="form.password"
+            type="password"
+            placeholder="密码"
+            prefix-icon="Lock"
+            show-password
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleLogin" style="width: 100%">登录</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="handleLogin"
+            style="width: 100%"
+          >登录</el-button>
         </el-form-item>
       </el-form>
       <div class="demo-info">
@@ -26,28 +37,34 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
 
-const router = useRouter()
-const form = ref({ username: '', password: '' })
+const router  = useRouter()
+const loading = ref(false)
+const form    = ref({ username: '', password: '' })
 
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) {
     ElMessage.warning('请输入用户名和密码')
     return
   }
-  
+
+  loading.value = true
   try {
     const res = await api.post('/auth/admin/login', form.value)
     const { token, user } = res.data.data
+
     if (!token) {
       ElMessage.error('登录失败：未获取到 token')
       return
     }
+
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(user))
     ElMessage.success('登录成功')
     router.push('/')
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '登录失败')
+    ElMessage.error(error.response?.data?.message || '登录失败')
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -65,7 +82,7 @@ const handleLogin = async () => {
   padding: 40px;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 h2 {
   text-align: center;

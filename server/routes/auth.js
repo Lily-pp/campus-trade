@@ -10,16 +10,22 @@ router.post('/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        const result = await db.query(
-            "SELECT * FROM users WHERE username = $1 AND role IN ('admin', 'operator')",
+        // 先查用户是否存在（不限 role）
+        const allResult = await db.query(
+            "SELECT * FROM users WHERE username = $1",
             [username]
         );
 
-        if (result.rows.length === 0) {
+        if (allResult.rows.length === 0) {
             return res.status(401).json({ code: 1, message: '用户名或密码错误', data: null });
         }
 
-        const user = result.rows[0];
+        const user = allResult.rows[0];
+
+        // 检查是否为管理角色
+        if (!['admin', 'operator'].includes(user.role)) {
+            return res.status(403).json({ code: 1, message: '该账号不是管理员，请使用前台登录', data: null });
+        }
 
         if (user.status === 0) {
             return res.status(403).json({ code: 1, message: '账号已被禁用', data: null });

@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middlewares/auth');
+const { logAdmin } = require('../utils/adminLog');
+
+const adminOnly = (req, res, next) => {
+    if (!['admin', 'operator'].includes(req.user.role)) {
+        return res.status(403).json({ code: 1, message: '无权限', data: null });
+    }
+    next();
+};
 
 // ── GET /api/items  商品列表（支持分页、分类筛选、排序、搜索）──
 router.get('/', async (req, res) => {
@@ -76,22 +84,51 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ── GET /api/items/all  后台管理：查全部商品（不过滤状态）──
-router.get('/all', authenticate, async (req, res) => {
+// ── GET /api/items/all  后台管理：查全部商品（分页 + 筛选）──
+router.get('/all', authenticate, adminOnly, async (req, res) => {
     try {
-        if (!['admin', 'operator'].includes(req.user.role)) {
-            return res.status(403).json({ code: 1, message: '无权限', data: null });
+        const { page = 1, pageSize = 15, status, category_id, keyword } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(pageSize);
+        const params = [];
+        const conditions = [];
+
+        if (status) {
+            params.push(status);
+            conditions.push(`i.status = $${params.length}`);
+        }
+        if (category_id) {
+            params.push(parseInt(category_id));
+            conditions.push(`i.category_id = $${params.length}`);
+        }
+        if (keyword) {
+            params.push(`%${keyword}%`);
+            conditions.push(`i.title ILIKE $${params.length}`);
         }
 
-        const result = await db.query(`
-            SELECT i.*, c.name AS category_name, u.username AS seller_name
-            FROM items i
-            LEFT JOIN categories c ON i.category_id = c.id
-            LEFT JOIN users u ON i.user_id = u.id
-            ORDER BY i.created_at DESC
-        `);
+        const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-        res.json({ code: 0, message: 'success', data: { total: result.rows.length, list: result.rows } });
+        const countResult = await db.query(
+            `SELECT COUNT(*) FROM items i ${where}`, params
+        );
+        const total = parseInt(countResult.rows[0].count);
+
+        params.push(parseInt(pageSize));
+        params.push(offset);
+        const listResult = await db.query(
+            `SELECT i.id, i.title, i.price, i.status, i.views_count, i.favorites_count,
+                    i.created_at, i.updated_at,
+                    c.name AS category_name,
+                    u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus
+             FROM items i
+             LEFT JOIN categories c ON i.category_id = c.id
+             LEFT JOIN users u ON i.user_id = u.id
+             ${where}
+             ORDER BY i.created_at DESC
+             LIMIT $${params.length - 1} OFFSET $${params.length}`,
+            params
+        );
+
+        res.json({ code: 0, message: 'success', data: { total, page: parseInt(page), list: listResult.rows } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ code: 1, message: '查询失败', data: null });
@@ -175,6 +212,7 @@ router.put('/:id/status', authenticate, async (req, res) => {
         }
 
         await db.query('UPDATE items SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+        await logAdmin(db, req.user.id, 'update_item_status', 'item', parseInt(id), { status });
         res.json({ code: 0, message: '状态更新成功', data: null });
     } catch (error) {
         console.error(error);
@@ -200,6 +238,7 @@ router.delete('/:id', authenticate, async (req, res) => {
         }
 
         await db.query('DELETE FROM items WHERE id = $1', [id]);
+        await logAdmin(db, req.user.id, 'delete_item', 'item', parseInt(id), null);
         res.json({ code: 0, message: '删除成功', data: null });
     } catch (error) {
         console.error(error);
