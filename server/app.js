@@ -12,11 +12,16 @@ const userRoutes      = require('./routes/users');
 const orderRoutes     = require('./routes/orders');
 const reportRoutes    = require('./routes/reports');
 const logRoutes       = require('./routes/logs');
+const cartRoutes      = require('./routes/cart');
+const uploadRoutes    = require('./routes/upload');
+const messageRoutes   = require('./routes/messages');
 
+const path = require('path');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use((req, res, next) => {
   console.log('[req]', req.method, req.originalUrl);
@@ -33,6 +38,9 @@ app.use('/api/users',      userRoutes);
 app.use('/api/orders',     orderRoutes);
 app.use('/api/reports',    reportRoutes);
 app.use('/api/logs',       logRoutes);
+app.use('/api/cart',       cartRoutes);
+app.use('/api/upload',     uploadRoutes);
+app.use('/api/messages',   messageRoutes);
 
 app.get('/', (req, res) => {
     res.json({ message: 'CampusTrade API 运行中' });

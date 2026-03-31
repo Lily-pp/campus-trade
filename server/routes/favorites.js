@@ -61,6 +61,21 @@ router.delete('/:item_id', authenticate, async (req, res) => {
     }
 });
 
+// ── GET /api/favorites/check/:item_id  检查是否已收藏 ──
+router.get('/check/:item_id', authenticate, async (req, res) => {
+    try {
+        const { item_id } = req.params;
+        const result = await db.query(
+            'SELECT 1 FROM favorites WHERE user_id = $1 AND item_id = $2',
+            [req.user.id, item_id]
+        );
+        res.json({ code: 0, message: 'success', data: { favorited: result.rows.length > 0 } });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 1, message: '查询失败', data: null });
+    }
+});
+
 // ── GET /api/favorites  我的收藏列表 ──
 router.get('/', authenticate, async (req, res) => {
     try {

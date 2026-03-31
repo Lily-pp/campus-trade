@@ -58,7 +58,8 @@ router.get('/', async (req, res) => {
         const dataResult = await db.query(
             `SELECT i.id, i.title, i.price, i.status, i.created_at, i.views_count, i.favorites_count,
                     c.name AS category_name,
-                    u.username AS seller_name, u.campus AS seller_campus
+                    u.username AS seller_name, u.campus AS seller_campus,
+                    (SELECT image_url FROM item_images WHERE item_id = i.id ORDER BY sort_order LIMIT 1) AS cover_image
              FROM items i
              LEFT JOIN categories c ON i.category_id = c.id
              LEFT JOIN users u ON i.user_id = u.id
@@ -135,6 +136,25 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
     }
 });
 
+// ── GET /api/items/my  我的发布（前台用户）──
+router.get('/my', authenticate, async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT i.id, i.title, i.price, i.status, i.views_count, i.favorites_count, i.created_at,
+                    c.name AS category_name
+             FROM items i
+             LEFT JOIN categories c ON i.category_id = c.id
+             WHERE i.user_id = $1
+             ORDER BY i.created_at DESC`,
+            [req.user.id]
+        );
+        res.json({ code: 0, message: 'success', data: result.rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 1, message: '查询失败', data: null });
+    }
+});
+
 // ── GET /api/items/:id  商品详情 ──
 router.get('/:id', async (req, res) => {
     try {
@@ -155,10 +175,19 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ code: 1, message: '商品不存在', data: null });
         }
 
+        // 查商品图片
+        const imgResult = await db.query(
+            'SELECT id, image_url AS url FROM item_images WHERE item_id = $1 ORDER BY sort_order',
+            [id]
+        );
+
         // 浏览量 +1
         await db.query('UPDATE items SET views_count = views_count + 1 WHERE id = $1', [id]);
 
-        res.json({ code: 0, message: 'success', data: result.rows[0] });
+        const data = result.rows[0];
+        data.images = imgResult.rows;
+
+        res.json({ code: 0, message: 'success', data });
     } catch (error) {
         console.error(error);
         res.status(500).json({ code: 1, message: '查询失败', data: null });
@@ -168,20 +197,32 @@ router.get('/:id', async (req, res) => {
 // ── POST /api/items  发布商品（需登录）──
 router.post('/', authenticate, async (req, res) => {
     try {
-        const { title, description, price, category_id, campus, contact_info } = req.body;
+        const { title, description, price, category_id, campus, images } = req.body;
 
         if (!title || price === undefined || !category_id) {
             return res.status(400).json({ code: 1, message: '标题、价格、分类不能为空', data: null });
         }
 
         const result = await db.query(
-            `INSERT INTO items (title, description, price, category_id, user_id, status, campus, contact_info)
-             VALUES ($1, $2, $3, $4, $5, 'on_sale', $6, $7)
+            `INSERT INTO items (title, description, price, category_id, user_id, status, campus)
+             VALUES ($1, $2, $3, $4, $5, 'on_sale', $6)
              RETURNING id`,
-            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, contact_info || null]
+            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null]
         );
 
-        res.status(201).json({ code: 0, message: '发布成功', data: { id: result.rows[0].id } });
+        const itemId = result.rows[0].id;
+
+        // 保存商品图片
+        if (images && Array.isArray(images) && images.length > 0) {
+            for (let i = 0; i < images.length; i++) {
+                await db.query(
+                    `INSERT INTO item_images (item_id, image_url, sort_order) VALUES ($1, $2, $3)`,
+                    [itemId, images[i], i]
+                );
+            }
+        }
+
+        res.status(201).json({ code: 0, message: '发布成功', data: { id: itemId } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ code: 1, message: '发布失败', data: null });

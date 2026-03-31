@@ -125,6 +125,35 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 	FOREIGN KEY (admin_id) REFERENCES users(id)
 );
 
+-- 购物车表
+CREATE TABLE IF NOT EXISTS cart (
+	id SERIAL PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	item_id INTEGER NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(user_id, item_id),
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+-- 私信消息表
+CREATE TABLE IF NOT EXISTS messages (
+	id SERIAL PRIMARY KEY,
+	sender_id INTEGER NOT NULL,
+	receiver_id INTEGER NOT NULL,
+	item_id INTEGER,
+	content TEXT NOT NULL,
+	is_read SMALLINT DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_cart_user ON cart(user_id);
+
 -- 初始化分类
 INSERT INTO categories (name, parent_id, sort_order)
 SELECT '学习用品', 0, 1 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = '学习用品' AND parent_id = 0);
@@ -136,9 +165,12 @@ INSERT INTO categories (name, parent_id, sort_order)
 SELECT '数码产品', 0, 4 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = '数码产品' AND parent_id = 0);
 
 -- 清空测试数据（按外键依赖顺序）
+DELETE FROM messages;
+DELETE FROM cart;
 DELETE FROM admin_logs;
 DELETE FROM reports;
 DELETE FROM orders;
+DELETE FROM item_images;
 DELETE FROM favorites;
 DELETE FROM views_log;
 DELETE FROM items;
@@ -151,6 +183,8 @@ ALTER SEQUENCE IF EXISTS views_log_id_seq RESTART WITH 1;
 ALTER SEQUENCE IF EXISTS orders_id_seq RESTART WITH 1;
 ALTER SEQUENCE IF EXISTS reports_id_seq RESTART WITH 1;
 ALTER SEQUENCE IF EXISTS admin_logs_id_seq RESTART WITH 1;
+ALTER SEQUENCE IF EXISTS cart_id_seq RESTART WITH 1;
+ALTER SEQUENCE IF EXISTS messages_id_seq RESTART WITH 1;
 
 -- 测试用户
 INSERT INTO users (username, password, real_name, role, campus) VALUES
