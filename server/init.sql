@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS items (
 	category_id INTEGER NOT NULL,
 	user_id INTEGER NOT NULL,
 	status VARCHAR(20) DEFAULT 'pending',
+	quantity INTEGER DEFAULT 1,
 	views_count INTEGER DEFAULT 0,
 	favorites_count INTEGER DEFAULT 0,
 	campus VARCHAR(50),
@@ -49,6 +50,19 @@ CREATE TABLE IF NOT EXISTS items (
 	FOREIGN KEY (category_id) REFERENCES categories(id),
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- 兵容旧数据库迁移：若 items 表已存在但缺少 quantity 列
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'items'
+		  AND column_name = 'quantity'
+	) THEN
+		EXECUTE 'ALTER TABLE items ADD COLUMN quantity INTEGER DEFAULT 1';
+	END IF;
+END $$;
 
 -- 收藏表
 CREATE TABLE IF NOT EXISTS favorites (

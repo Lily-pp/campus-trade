@@ -24,6 +24,11 @@
           <span style="margin-left:8px;color:#909399">元</span>
         </el-form-item>
 
+        <el-form-item label="商品数量" prop="quantity">
+          <el-input-number v-model="form.quantity" :min="1" :max="999" :precision="0" :step="1" style="width:160px" />
+          <span style="margin-left:8px;color:#909399">件（数量归零时自动下架）</span>
+        </el-form-item>
+
         <el-form-item label="商品描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="5" placeholder="详细描述你的商品，成色、购买时间、使用情况等" />
         </el-form-item>
@@ -78,13 +83,15 @@ const form = ref({
   title: '',
   category_id: '',
   price: null,
+  quantity: 1,
   description: ''
 })
 
 const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
   category_id: [{ required: true, message: '请选择分类', trigger: 'change' }],
-  price: [{ required: true, message: '请输入价格', trigger: 'blur' }]
+  price: [{ required: true, message: '请输入价格', trigger: 'blur' }],
+  quantity: [{ required: true, message: '请输入数量', trigger: 'blur' }]
 }
 
 const fetchCategories = async () => {

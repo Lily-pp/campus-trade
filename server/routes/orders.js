@@ -21,8 +21,8 @@ router.get('/my', authenticate, async (req, res) => {
         const result = await db.query(
             `SELECT o.id, o.price, o.status, o.created_at,
                     i.id AS item_id, i.title AS item_title,
-                    s.username AS seller_name, s.campus AS seller_campus,
-                    (SELECT img.url FROM item_images img WHERE img.item_id = i.id ORDER BY img.sort_order LIMIT 1) AS cover_image
+                    s.id AS seller_id, s.username AS seller_name, s.campus AS seller_campus,
+                    (SELECT img.image_url FROM item_images img WHERE img.item_id = i.id ORDER BY img.sort_order LIMIT 1) AS cover_image
              FROM orders o
              JOIN items i ON o.item_id = i.id
              JOIN users s ON o.seller_id = s.id
@@ -43,8 +43,8 @@ router.get('/sold', authenticate, async (req, res) => {
         const result = await db.query(
             `SELECT o.id, o.price, o.status, o.created_at,
                     i.id AS item_id, i.title AS item_title,
-                    b.username AS buyer_name, b.campus AS buyer_campus,
-                    (SELECT img.url FROM item_images img WHERE img.item_id = i.id ORDER BY img.sort_order LIMIT 1) AS cover_image
+                    b.id AS buyer_id, b.username AS buyer_name, b.campus AS buyer_campus,
+                    (SELECT img.image_url FROM item_images img WHERE img.item_id = i.id ORDER BY img.sort_order LIMIT 1) AS cover_image
              FROM orders o
              JOIN items i ON o.item_id = i.id
              JOIN users b ON o.buyer_id = b.id
@@ -67,7 +67,10 @@ router.post('/buy', authenticate, async (req, res) => {
             return res.status(400).json({ code: 1, message: '缺少 item_id', data: null });
         }
 
-        const itemResult = await db.query('SELECT id, user_id, price, status FROM items WHERE id = $1', [item_id]);
+        const itemResult = await db.query(
+            'SELECT id, user_id, price, status, COALESCE(quantity, 1) AS quantity FROM items WHERE id = $1',
+            [item_id]
+        );
         if (itemResult.rows.length === 0) {
             return res.status(404).json({ code: 1, message: '商品不存在', data: null });
         }
@@ -79,12 +82,29 @@ router.post('/buy', authenticate, async (req, res) => {
         if (item.user_id === req.user.id) {
             return res.status(400).json({ code: 1, message: '不能购买自己的商品', data: null });
         }
+        if (item.quantity <= 0) {
+            return res.status(400).json({ code: 1, message: '商品库存不足', data: null });
+        }
 
         const orderResult = await db.query(
             `INSERT INTO orders (item_id, buyer_id, seller_id, price, status)
              VALUES ($1, $2, $3, $4, 'pending') RETURNING id`,
             [item_id, req.user.id, item.user_id, item.price]
         );
+
+        // 减少库存，库存归零则自动下架（标记为已售）
+        const newQty = item.quantity - 1;
+        if (newQty <= 0) {
+            await db.query(
+                "UPDATE items SET quantity = 0, status = 'sold', updated_at = NOW() WHERE id = $1",
+                [item_id]
+            );
+        } else {
+            await db.query(
+                'UPDATE items SET quantity = $1, updated_at = NOW() WHERE id = $2',
+                [newQty, item_id]
+            );
+        }
 
         res.json({ code: 0, message: '下单成功', data: { order_id: orderResult.rows[0].id } });
     } catch (error) {
@@ -204,7 +224,9 @@ router.put('/:id/confirm', authenticate, async (req, res) => {
 router.put('/:id/cancel', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
-        const orderResult = await db.query('SELECT buyer_id, status, item_id FROM orders WHERE id = $1', [id]);
+        const orderResult = await db.query(
+            'SELECT buyer_id, status, item_id FROM orders WHERE id = $1', [id]
+        );
 
         if (orderResult.rows.length === 0) {
             return res.status(404).json({ code: 1, message: '订单不存在', data: null });
@@ -217,9 +239,46 @@ router.put('/:id/cancel', authenticate, async (req, res) => {
         }
 
         await db.query("UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1", [id]);
-        await db.query("UPDATE items SET status = 'on_sale', updated_at = NOW() WHERE id = $1", [orderResult.rows[0].item_id]);
+
+        // 恢复库存，如果商品是已售状态（因库存归零自动下架），恢复为在售
+        const itemId = orderResult.rows[0].item_id;
+        await db.query(
+            `UPDATE items
+             SET quantity = COALESCE(quantity, 0) + 1,
+                 status = CASE WHEN status = 'sold' THEN 'on_sale' ELSE status END,
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [itemId]
+        );
 
         res.json({ code: 0, message: '订单已取消', data: null });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 1, message: '操作失败', data: null });
+    }
+});
+
+// ── PUT /api/orders/:id/complete  卖家确认交易完成 ──
+router.put('/:id/complete', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const orderResult = await db.query(
+            'SELECT seller_id, status FROM orders WHERE id = $1', [id]
+        );
+
+        if (orderResult.rows.length === 0) {
+            return res.status(404).json({ code: 1, message: '订单不存在', data: null });
+        }
+        if (orderResult.rows[0].seller_id !== req.user.id) {
+            return res.status(403).json({ code: 1, message: '无权操作', data: null });
+        }
+        if (orderResult.rows[0].status !== 'pending') {
+            return res.status(400).json({ code: 1, message: '订单状态不允许操作', data: null });
+        }
+
+        await db.query("UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = $1", [id]);
+
+        res.json({ code: 0, message: '交易已完成', data: null });
     } catch (error) {
         console.error(error);
         res.status(500).json({ code: 1, message: '操作失败', data: null });

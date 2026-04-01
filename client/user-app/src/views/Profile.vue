@@ -33,11 +33,13 @@
                   <div class="my-item-meta">
                     <el-tag size="small" type="info">{{ item.category_name }}</el-tag>
                     <el-tag size="small" :type="statusType[item.status]">{{ statusMap[item.status] }}</el-tag>
+                    <el-tag v-if="item.status === 'sold'" size="small" type="danger">已售出</el-tag>
                   </div>
                 </div>
                 <div class="my-item-right">
                   <div class="my-item-price">¥{{ item.price }}</div>
                   <div class="my-item-stats">
+                    <span style="color:#606266">库存：{{ item.quantity ?? 1 }}</span>
                     <span><el-icon><View /></el-icon>{{ item.views_count || 0 }}</span>
                     <span><el-icon><Star /></el-icon>{{ item.favorites_count || 0 }}</span>
                   </div>

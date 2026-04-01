@@ -30,6 +30,10 @@
               <el-descriptions-item label="状态">
                 <el-tag :type="statusType[item.status]">{{ statusMap[item.status] }}</el-tag>
               </el-descriptions-item>
+              <!-- 库存仅卖家本人可见 -->
+              <el-descriptions-item v-if="isOwner" label="剩余库存">
+                {{ item.quantity ?? 1 }} 件
+              </el-descriptions-item>
               <el-descriptions-item label="浏览量">{{ item.views_count || 0 }}</el-descriptions-item>
               <el-descriptions-item label="收藏数">{{ item.favorites_count || 0 }}</el-descriptions-item>
               <el-descriptions-item label="发布时间">{{ formatTime(item.created_at) }}</el-descriptions-item>

@@ -116,7 +116,7 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
         params.push(parseInt(pageSize));
         params.push(offset);
         const listResult = await db.query(
-            `SELECT i.id, i.title, i.price, i.status, i.views_count, i.favorites_count,
+            `SELECT i.id, i.title, i.price, i.status, i.quantity, i.views_count, i.favorites_count,
                     i.created_at, i.updated_at,
                     c.name AS category_name,
                     u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus
@@ -140,7 +140,7 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
 router.get('/my', authenticate, async (req, res) => {
     try {
         const result = await db.query(
-            `SELECT i.id, i.title, i.price, i.status, i.views_count, i.favorites_count, i.created_at,
+            `SELECT i.id, i.title, i.price, i.status, i.quantity, i.views_count, i.favorites_count, i.created_at,
                     c.name AS category_name
              FROM items i
              LEFT JOIN categories c ON i.category_id = c.id
@@ -197,17 +197,19 @@ router.get('/:id', async (req, res) => {
 // ── POST /api/items  发布商品（需登录）──
 router.post('/', authenticate, async (req, res) => {
     try {
-        const { title, description, price, category_id, campus, images } = req.body;
+        const { title, description, price, category_id, campus, images, quantity } = req.body;
 
         if (!title || price === undefined || !category_id) {
             return res.status(400).json({ code: 1, message: '标题、价格、分类不能为空', data: null });
         }
 
+        const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
+
         const result = await db.query(
-            `INSERT INTO items (title, description, price, category_id, user_id, status, campus)
-             VALUES ($1, $2, $3, $4, $5, 'on_sale', $6)
+            `INSERT INTO items (title, description, price, category_id, user_id, status, campus, quantity)
+             VALUES ($1, $2, $3, $4, $5, 'on_sale', $6, $7)
              RETURNING id`,
-            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null]
+            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty]
         );
 
         const itemId = result.rows[0].id;

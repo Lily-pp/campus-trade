@@ -96,7 +96,7 @@ const fetchOrders = async () => {
 const cancelOrder = async (id) => {
   try {
     await ElMessageBox.confirm('确定取消该订单？', '提示')
-    const res = await api.put(`/orders/${id}/status`, { status: 'cancelled' })
+    const res = await api.put(`/orders/${id}/cancel`)
     if (res.data.code === 0) {
       ElMessage.success('订单已取消')
       fetchOrders()
@@ -109,7 +109,7 @@ const cancelOrder = async (id) => {
 const completeOrder = async (id) => {
   try {
     await ElMessageBox.confirm('确认交易完成？', '提示')
-    const res = await api.put(`/orders/${id}/status`, { status: 'completed' })
+    const res = await api.put(`/orders/${id}/complete`)
     if (res.data.code === 0) {
       ElMessage.success('交易已完成')
       fetchOrders()
