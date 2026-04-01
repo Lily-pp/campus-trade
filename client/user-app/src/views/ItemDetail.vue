@@ -111,8 +111,8 @@ const loading = ref(false)
 const isFavorited = ref(false)
 const favLoading = ref(false)
 
-const statusMap = { on_sale: '在售', sold: '已售', off: '已下架', pending: '审核中' }
-const statusType = { on_sale: 'success', sold: 'info', off: 'warning', pending: '' }
+const statusMap = { on_sale: '在售', sold: '已售', off: '已下架', pending: '审核中', rejected: '审核未通过' }
+const statusType = { on_sale: 'success', sold: 'info', off: 'warning', pending: '', rejected: 'danger' }
 
 const getStatusLabel = (currentItem) => statusMap[currentItem?.status] || currentItem?.status || ''
 

@@ -266,7 +266,7 @@ router.put('/:id/status', authenticate, async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        const allowed = ['on_sale', 'sold', 'off'];
+        const allowed = ['on_sale', 'sold', 'off', 'rejected'];
         if (!allowed.includes(status)) {
             return res.status(400).json({ code: 1, message: '无效的状态值', data: null });
         }
@@ -288,11 +288,12 @@ router.put('/:id/status', authenticate, async (req, res) => {
         }
 
         if (!isAdmin) {
-            // pending/on_sale 均可下架；已审核的 off 可重新上架；pending/未审核 off 不可自行上架
+            // pending/on_sale 均可下架；已审核的 off 可重新上架；rejected/pending未审核的 off 不可自行上架
             const ownerAllowedTransitions = {
                 pending: ['off'],
                 on_sale: ['off'],
-                off: item.is_approved ? ['on_sale'] : []
+                off: item.is_approved ? ['on_sale'] : [],
+                rejected: []  // 管理员拒绝的商品，用户不可自行操作（需删除后重新发布）
             };
             const nextAllowed = ownerAllowedTransitions[item.status] || [];
             if (!nextAllowed.includes(status)) {

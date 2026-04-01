@@ -74,11 +74,10 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item v-if="row.status === 'pending'" command="approve">审核通过</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'pending' || row.status === 'rejected'" command="approve">审核通过</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'pending'" command="reject">拒绝</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'on_sale'" command="off">下架</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'off' && row.is_approved" command="on_sale">上架</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 'off' && !row.is_approved" command="approve">审核通过</el-dropdown-item>
                   <el-dropdown-item command="delete" divided>
                     <span style="color: #f56c6c">删除</span>
                   </el-dropdown-item>
@@ -124,27 +123,24 @@ const filters = reactive({
   category_id: ''
 })
 
-// 状态映射（含 pending）
+// 状态映射（含 pending、rejected）
 const statusMap = {
-  pending: { label: '审核中', type: 'danger' },
-  on_sale: { label: '出售中', type: 'success' },
-  sold:    { label: '已售出', type: 'info' },
-  off:     { label: '已下架', type: 'warning' },
+  pending:  { label: '审核中',   type: 'danger' },
+  on_sale:  { label: '出售中',   type: 'success' },
+  sold:     { label: '已售出',   type: 'info' },
+  off:      { label: '已下架',   type: 'warning' },
+  rejected: { label: '审核未通过', type: 'danger' },
 }
 
 const statusOptions = [
-  { label: '审核中', value: 'pending' },
-  { label: '出售中', value: 'on_sale' },
-  { label: '已下架', value: 'off' },
-  { label: '已售出', value: 'sold' },
+  { label: '审核中',   value: 'pending' },
+  { label: '出售中',   value: 'on_sale' },
+  { label: '已下架',   value: 'off' },
+  { label: '已售出',   value: 'sold' },
+  { label: '审核未通过', value: 'rejected' },
 ]
 
-const getStatusMeta = (item) => {
-  if (item.status === 'off' && item.is_approved === false) {
-    return { label: '审核未通过', type: 'danger' }
-  }
-  return statusMap[item.status] ?? { label: item.status, type: 'info' }
-}
+const getStatusMeta = (item) => statusMap[item.status] ?? { label: item.status, type: 'info' }
 
 const formatTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
 
@@ -198,7 +194,7 @@ const handleCommand = (row, cmd) => {
   } else if (cmd === 'approve') {
     changeStatus(row, 'on_sale')
   } else if (cmd === 'reject') {
-    changeStatus(row, 'off')
+    changeStatus(row, 'rejected')  // 使用独立的 rejected 状态，区分于用户主动下架的 off
   } else {
     changeStatus(row, cmd)
   }
