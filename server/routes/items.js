@@ -127,6 +127,7 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
         params.push(offset);
         const listResult = await db.query(
                 `SELECT i.id, i.title, i.price, i.status,
+                    i.is_approved,
                     CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
                     i.views_count, i.favorites_count,
                     i.created_at, i.updated_at,
@@ -153,6 +154,7 @@ router.get('/my', authenticate, async (req, res) => {
     try {
         const result = await db.query(
                 `SELECT i.id, i.title, i.price, i.status,
+                    i.is_approved,
                     CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
                     i.views_count, i.favorites_count, i.created_at,
                     c.name AS category_name
@@ -233,8 +235,8 @@ router.post('/', authenticate, async (req, res) => {
         const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
 
         const result = await db.query(
-            `INSERT INTO items (title, description, price, category_id, user_id, status, campus, quantity)
-             VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
+            `INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+             VALUES ($1, $2, $3, $4, $5, 'pending', FALSE, $6, $7)
              RETURNING id`,
             [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty]
         );
@@ -270,7 +272,7 @@ router.put('/:id/status', authenticate, async (req, res) => {
         }
 
         const itemResult = await db.query(
-            'SELECT user_id, status, COALESCE(quantity, 1) AS quantity FROM items WHERE id = $1',
+            'SELECT user_id, status, is_approved, COALESCE(quantity, 1) AS quantity FROM items WHERE id = $1',
             [id]
         );
         if (itemResult.rows.length === 0) {
@@ -285,16 +287,21 @@ router.put('/:id/status', authenticate, async (req, res) => {
             return res.status(403).json({ code: 1, message: '无权限', data: null });
         }
 
-        const ownerAllowedTransitions = {
-            on_sale: ['off'],
-            off: ['on_sale']
-        };
-
         if (!isAdmin) {
+            // pending/on_sale 均可下架；已审核的 off 可重新上架；pending/未审核 off 不可自行上架
+            const ownerAllowedTransitions = {
+                pending: ['off'],
+                on_sale: ['off'],
+                off: item.is_approved ? ['on_sale'] : []
+            };
             const nextAllowed = ownerAllowedTransitions[item.status] || [];
             if (!nextAllowed.includes(status)) {
                 return res.status(400).json({ code: 1, message: '当前状态不允许此操作', data: null });
             }
+        }
+
+        if (status === 'on_sale' && !isAdmin && !item.is_approved) {
+            return res.status(400).json({ code: 1, message: '商品尚未审核通过，不能上架', data: null });
         }
 
         if (status === 'on_sale' && parseInt(item.quantity) <= 0) {
@@ -303,9 +310,10 @@ router.put('/:id/status', authenticate, async (req, res) => {
 
         await db.query(
             `UPDATE items
-             SET status = $1,
-                 quantity = CASE WHEN $1 = 'sold' THEN 0 ELSE quantity END,
-                 updated_at = NOW()
+             SET status = $1::varchar,
+                 is_approved = CASE WHEN $1::varchar = 'on_sale' THEN TRUE ELSE is_approved END,
+                 quantity    = CASE WHEN $1::varchar = 'sold'    THEN 0    ELSE quantity    END,
+                 updated_at  = NOW()
              WHERE id = $2`,
             [status, id]
         );

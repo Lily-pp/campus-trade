@@ -58,8 +58,8 @@
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="statusMap[row.status]?.type ?? 'info'" size="small">
-              {{ statusMap[row.status]?.label ?? row.status }}
+            <el-tag :type="getStatusMeta(row).type" size="small">
+              {{ getStatusMeta(row).label }}
             </el-tag>
           </template>
         </el-table-column>
@@ -77,7 +77,8 @@
                   <el-dropdown-item v-if="row.status === 'pending'" command="approve">审核通过</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'pending'" command="reject">拒绝</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'on_sale'" command="off">下架</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 'off'" command="on_sale">上架</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'off' && row.is_approved" command="on_sale">上架</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'off' && !row.is_approved" command="approve">审核通过</el-dropdown-item>
                   <el-dropdown-item command="delete" divided>
                     <span style="color: #f56c6c">删除</span>
                   </el-dropdown-item>
@@ -125,18 +126,25 @@ const filters = reactive({
 
 // 状态映射（含 pending）
 const statusMap = {
-  pending: { label: '待审核', type: 'danger' },
+  pending: { label: '审核中', type: 'danger' },
   on_sale: { label: '出售中', type: 'success' },
   sold:    { label: '已售出', type: 'info' },
   off:     { label: '已下架', type: 'warning' },
 }
 
 const statusOptions = [
-  { label: '待审核', value: 'pending' },
+  { label: '审核中', value: 'pending' },
   { label: '出售中', value: 'on_sale' },
   { label: '已下架', value: 'off' },
   { label: '已售出', value: 'sold' },
 ]
+
+const getStatusMeta = (item) => {
+  if (item.status === 'off' && item.is_approved === false) {
+    return { label: '审核未通过', type: 'danger' }
+  }
+  return statusMap[item.status] ?? { label: item.status, type: 'info' }
+}
 
 const formatTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
 

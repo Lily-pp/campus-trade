@@ -32,7 +32,7 @@
                   <div class="my-item-title">{{ item.title }}</div>
                   <div class="my-item-meta">
                     <el-tag size="small" type="info">{{ item.category_name }}</el-tag>
-                    <el-tag size="small" :type="statusType[item.status]">{{ statusMap[item.status] }}</el-tag>
+                    <el-tag size="small" :type="getStatusType(item)">{{ getStatusLabel(item) }}</el-tag>
                     <el-tag v-if="item.status === 'sold'" size="small" type="danger">已售出</el-tag>
                   </div>
                 </div>
@@ -45,13 +45,13 @@
                   </div>
                   <div class="my-item-actions" @click.stop>
                     <el-button
-                      v-if="item.status === 'on_sale'"
+                      v-if="item.status === 'on_sale' || item.status === 'pending'"
                       size="small" type="warning" plain
                       :loading="item._loading"
                       @click.stop="toggleItemStatus(item, 'off')"
                     >下架</el-button>
                     <el-button
-                      v-if="item.status === 'off'"
+                      v-if="item.status === 'off' && item.is_approved"
                       size="small" type="success" plain
                       :loading="item._loading"
                       @click.stop="toggleItemStatus(item, 'on_sale')"
@@ -134,6 +134,10 @@ const viewHistory = ref([])
 
 const statusMap = { on_sale: '在售', sold: '已售', off: '已下架', pending: '审核中' }
 const statusType = { on_sale: 'success', sold: 'info', off: 'warning', pending: '' }
+
+const getStatusLabel = (item) => statusMap[item.status] || item.status
+
+const getStatusType = (item) => statusType[item.status] || 'info'
 
 const formatTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : ''
 

@@ -28,7 +28,7 @@
             <el-descriptions :column="1" border class="info-table">
               <el-descriptions-item label="分类">{{ item.category_name }}</el-descriptions-item>
               <el-descriptions-item label="状态">
-                <el-tag :type="statusType[item.status]">{{ statusMap[item.status] }}</el-tag>
+                <el-tag :type="getStatusType(item)">{{ getStatusLabel(item) }}</el-tag>
               </el-descriptions-item>
               <!-- 库存仅卖家本人可见 -->
               <el-descriptions-item v-if="isOwner" label="剩余库存">
@@ -69,7 +69,7 @@
               </template>
             </div>
             <div class="action-bar" v-else>
-              <el-tag :type="statusType[item.status]" size="large">{{ statusMap[item.status] }}</el-tag>
+              <el-tag :type="getStatusType(item)" size="large">{{ getStatusLabel(item) }}</el-tag>
             </div>
           </div>
         </div>
@@ -113,6 +113,10 @@ const favLoading = ref(false)
 
 const statusMap = { on_sale: '在售', sold: '已售', off: '已下架', pending: '审核中' }
 const statusType = { on_sale: 'success', sold: 'info', off: 'warning', pending: '' }
+
+const getStatusLabel = (currentItem) => statusMap[currentItem?.status] || currentItem?.status || ''
+
+const getStatusType = (currentItem) => statusType[currentItem?.status] || 'info'
 
 const isOwner = computed(() => {
   return userStore.user && item.value && item.value.seller_id === userStore.user.id

@@ -248,7 +248,7 @@ router.put('/:id/cancel', authenticate, async (req, res) => {
         await db.query(
             `UPDATE items
              SET quantity = COALESCE(quantity, 0) + 1,
-                 status = CASE WHEN status = 'sold' THEN 'on_sale' ELSE status END,
+                 status = CASE WHEN status = 'sold' AND is_approved = TRUE THEN 'on_sale' ELSE status END,
                  updated_at = NOW()
              WHERE id = $1`,
             [itemId]

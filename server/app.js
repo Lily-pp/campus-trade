@@ -15,6 +15,7 @@ const logRoutes       = require('./routes/logs');
 const cartRoutes      = require('./routes/cart');
 const uploadRoutes    = require('./routes/upload');
 const messageRoutes   = require('./routes/messages');
+const { ensureSchema } = require('./scripts/ensure-schema');
 
 const path = require('path');
 const app = express();
@@ -47,6 +48,17 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
-});
+
+async function startServer() {
+  try {
+    await ensureSchema();
+    app.listen(PORT, () => {
+      console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ 启动失败，数据库结构检查未通过:', error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
