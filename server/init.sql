@@ -77,10 +77,30 @@ CREATE INDEX IF NOT EXISTS idx_views_log_item ON views_log(item_id);
 CREATE TABLE IF NOT EXISTS item_images (
 	id SERIAL PRIMARY KEY,
 	item_id INTEGER NOT NULL,
-	url VARCHAR(500) NOT NULL,
+	image_url VARCHAR(500) NOT NULL,
 	sort_order INTEGER DEFAULT 0,
 	FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 );
+
+-- 兼容旧版本字段：若历史表仍是 url，则迁移为 image_url
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'item_images'
+		  AND column_name = 'url'
+	) AND NOT EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'item_images'
+		  AND column_name = 'image_url'
+	) THEN
+		EXECUTE 'ALTER TABLE item_images RENAME COLUMN url TO image_url';
+	END IF;
+END $$;
 
 -- 订单表
 CREATE TABLE IF NOT EXISTS orders (
