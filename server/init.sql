@@ -64,6 +64,13 @@ BEGIN
 	END IF;
 END $$;
 
+-- 历史数据修正：已售商品库存统一归零，避免“已售但仍有库存”导致前端展示异常
+UPDATE items
+SET quantity = 0,
+	updated_at = CURRENT_TIMESTAMP
+WHERE status = 'sold'
+  AND COALESCE(quantity, 1) <> 0;
+
 -- 收藏表
 CREATE TABLE IF NOT EXISTS favorites (
 	user_id INTEGER NOT NULL,
@@ -229,14 +236,14 @@ INSERT INTO users (username, password, real_name, role, campus) VALUES
 ('wangwu', '123456', '王五', 'user', '宝山校区');
 
 -- 测试商品（user_id: 3=张三, 4=李四, 5=王五）
-INSERT INTO items (title, description, price, category_id, user_id, status) VALUES
-('iPhone 13 九成新', '自用 iPhone 13，电池健康 92%，无划痕', 3800, 4, 3, 'on_sale'),
-('高数教材同济第七版', '几乎全新，无笔记', 25, 1, 3, 'on_sale'),
-('山地自行车', '骑了一年，车况良好，带坐垫', 350, 3, 4, 'on_sale'),
-('台灯', '宿舍用小台灯，亮度可调', 45, 2, 4, 'on_sale'),
-('笔记本电脑支架', '铝合金材质，折叠便携', 88, 4, 3, 'sold'),
-('英语四级真题合集', '2020-2024年真题，附答案解析', 30, 1, 5, 'on_sale'),
-('机械键盘', '87键青轴，九成新', 180, 4, 5, 'pending');
+INSERT INTO items (title, description, price, category_id, user_id, status, quantity) VALUES
+('iPhone 13 九成新', '自用 iPhone 13，电池健康 92%，无划痕', 3800, 4, 3, 'on_sale', 1),
+('高数教材同济第七版', '几乎全新，无笔记', 25, 1, 3, 'on_sale', 1),
+('山地自行车', '骑了一年，车况良好，带坐垫', 350, 3, 4, 'on_sale', 1),
+('台灯', '宿舍用小台灯，亮度可调', 45, 2, 4, 'on_sale', 1),
+('笔记本电脑支架', '铝合金材质，折叠便携', 88, 4, 3, 'sold', 0),
+('英语四级真题合集', '2020-2024年真题，附答案解析', 30, 1, 5, 'on_sale', 1),
+('机械键盘', '87键青轴，九成新', 180, 4, 5, 'pending', 1);
 
 -- 测试订单（buyer_id=4=李四 购买 item_id=1=iPhone）
 INSERT INTO orders (item_id, buyer_id, seller_id, price, status)

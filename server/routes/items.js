@@ -3,12 +3,22 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middlewares/auth');
 const { logAdmin } = require('../utils/adminLog');
+const { verifyToken } = require('../utils/jwt');
 
 const adminOnly = (req, res, next) => {
     if (!['admin', 'operator'].includes(req.user.role)) {
         return res.status(403).json({ code: 1, message: '无权限', data: null });
     }
     next();
+};
+
+const parseOptionalUser = (req) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+
+    return verifyToken(authHeader.split(' ')[1]);
 };
 
 // ── GET /api/items  商品列表（支持分页、分类筛选、排序、搜索）──
@@ -56,7 +66,7 @@ router.get('/', async (req, res) => {
         params.push(parseInt(pageSize));
         params.push(offset);
         const dataResult = await db.query(
-            `SELECT i.id, i.title, i.price, i.status, i.created_at, i.views_count, i.favorites_count,
+                `SELECT i.id, i.title, i.price, i.status, i.created_at, i.views_count, i.favorites_count,
                     c.name AS category_name,
                     u.username AS seller_name, u.campus AS seller_campus,
                     (SELECT image_url FROM item_images WHERE item_id = i.id ORDER BY sort_order LIMIT 1) AS cover_image
@@ -116,7 +126,9 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
         params.push(parseInt(pageSize));
         params.push(offset);
         const listResult = await db.query(
-            `SELECT i.id, i.title, i.price, i.status, i.quantity, i.views_count, i.favorites_count,
+                `SELECT i.id, i.title, i.price, i.status,
+                    CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
+                    i.views_count, i.favorites_count,
                     i.created_at, i.updated_at,
                     c.name AS category_name,
                     u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus
@@ -140,7 +152,9 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
 router.get('/my', authenticate, async (req, res) => {
     try {
         const result = await db.query(
-            `SELECT i.id, i.title, i.price, i.status, i.quantity, i.views_count, i.favorites_count, i.created_at,
+                `SELECT i.id, i.title, i.price, i.status,
+                    CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
+                    i.views_count, i.favorites_count, i.created_at,
                     c.name AS category_name
              FROM items i
              LEFT JOIN categories c ON i.category_id = c.id
@@ -159,6 +173,7 @@ router.get('/my', authenticate, async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        const currentUser = parseOptionalUser(req);
 
         const result = await db.query(
             `SELECT i.*,
@@ -175,16 +190,28 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ code: 1, message: '商品不存在', data: null });
         }
 
+        const item = result.rows[0];
+        const isOwner = currentUser && item.user_id === currentUser.id;
+        const isAdmin = currentUser && ['admin', 'operator'].includes(currentUser.role);
+        if (item.status !== 'on_sale' && !isOwner && !isAdmin) {
+            return res.status(403).json({ code: 1, message: '商品暂不可查看', data: null });
+        }
+
         // 查商品图片
         const imgResult = await db.query(
             'SELECT id, image_url AS url FROM item_images WHERE item_id = $1 ORDER BY sort_order',
             [id]
         );
 
-        // 浏览量 +1
-        await db.query('UPDATE items SET views_count = views_count + 1 WHERE id = $1', [id]);
+        if (item.status === 'on_sale') {
+            await db.query('UPDATE items SET views_count = views_count + 1 WHERE id = $1', [id]);
+            item.views_count = (item.views_count || 0) + 1;
+        }
 
-        const data = result.rows[0];
+        const data = item;
+        if (data.status === 'sold') {
+            data.quantity = 0;
+        }
         data.images = imgResult.rows;
 
         res.json({ code: 0, message: 'success', data });
@@ -207,7 +234,7 @@ router.post('/', authenticate, async (req, res) => {
 
         const result = await db.query(
             `INSERT INTO items (title, description, price, category_id, user_id, status, campus, quantity)
-             VALUES ($1, $2, $3, $4, $5, 'on_sale', $6, $7)
+             VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
              RETURNING id`,
             [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty]
         );
@@ -242,19 +269,46 @@ router.put('/:id/status', authenticate, async (req, res) => {
             return res.status(400).json({ code: 1, message: '无效的状态值', data: null });
         }
 
-        const itemResult = await db.query('SELECT user_id FROM items WHERE id = $1', [id]);
+        const itemResult = await db.query(
+            'SELECT user_id, status, COALESCE(quantity, 1) AS quantity FROM items WHERE id = $1',
+            [id]
+        );
         if (itemResult.rows.length === 0) {
             return res.status(404).json({ code: 1, message: '商品不存在', data: null });
         }
 
-        const isOwner = itemResult.rows[0].user_id === req.user.id;
+        const item = itemResult.rows[0];
+        const isOwner = item.user_id === req.user.id;
         const isAdmin = ['admin', 'operator'].includes(req.user.role);
 
         if (!isOwner && !isAdmin) {
             return res.status(403).json({ code: 1, message: '无权限', data: null });
         }
 
-        await db.query('UPDATE items SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+        const ownerAllowedTransitions = {
+            on_sale: ['off'],
+            off: ['on_sale']
+        };
+
+        if (!isAdmin) {
+            const nextAllowed = ownerAllowedTransitions[item.status] || [];
+            if (!nextAllowed.includes(status)) {
+                return res.status(400).json({ code: 1, message: '当前状态不允许此操作', data: null });
+            }
+        }
+
+        if (status === 'on_sale' && parseInt(item.quantity) <= 0) {
+            return res.status(400).json({ code: 1, message: '库存为0，不能上架', data: null });
+        }
+
+        await db.query(
+            `UPDATE items
+             SET status = $1,
+                 quantity = CASE WHEN $1 = 'sold' THEN 0 ELSE quantity END,
+                 updated_at = NOW()
+             WHERE id = $2`,
+            [status, id]
+        );
         await logAdmin(db, req.user.id, 'update_item_status', 'item', parseInt(id), { status });
         res.json({ code: 0, message: '状态更新成功', data: null });
     } catch (error) {

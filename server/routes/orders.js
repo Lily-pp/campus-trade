@@ -211,7 +211,10 @@ router.put('/:id/confirm', authenticate, async (req, res) => {
         }
 
         await db.query("UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = $1", [id]);
-        await db.query("UPDATE items SET status = 'sold', updated_at = NOW() WHERE id = $1", [orderResult.rows[0].item_id]);
+        await db.query(
+            "UPDATE items SET status = 'sold', quantity = 0, updated_at = NOW() WHERE id = $1",
+            [orderResult.rows[0].item_id]
+        );
 
         res.json({ code: 0, message: '确认收货成功', data: null });
     } catch (error) {
