@@ -43,6 +43,20 @@
                     <span><el-icon><View /></el-icon>{{ item.views_count || 0 }}</span>
                     <span><el-icon><Star /></el-icon>{{ item.favorites_count || 0 }}</span>
                   </div>
+                  <div class="my-item-actions" @click.stop>
+                    <el-button
+                      v-if="item.status === 'on_sale'"
+                      size="small" type="warning" plain
+                      :loading="item._loading"
+                      @click.stop="toggleItemStatus(item, 'off')"
+                    >下架</el-button>
+                    <el-button
+                      v-if="item.status === 'off'"
+                      size="small" type="success" plain
+                      :loading="item._loading"
+                      @click.stop="toggleItemStatus(item, 'on_sale')"
+                    >重新上架</el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -158,6 +172,23 @@ const removeFavorite = async (itemId) => {
   } catch (e) {
     ElMessage.error('操作失败')
   }
+}
+
+const toggleItemStatus = async (item, newStatus) => {
+  item._loading = true
+  const labelMap = { off: '下架', on_sale: '上架' }
+  try {
+    const res = await api.put(`/items/${item.id}/status`, { status: newStatus })
+    if (res.data.code === 0) {
+      item.status = newStatus
+      ElMessage.success(`商品已${labelMap[newStatus]}`)
+    } else {
+      ElMessage.error(res.data.message || '操作失败')
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '操作失败')
+  }
+  item._loading = false
 }
 
 const onTabChange = (tab) => {
@@ -290,5 +321,11 @@ onMounted(fetchPublished)
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+.my-item-actions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
