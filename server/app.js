@@ -51,14 +51,34 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
+    console.log('正在启动服务器...');
+    console.log('正在检查数据库结构...');
     await ensureSchema();
-    app.listen(PORT, () => {
+    console.log('数据库结构检查完成');
+    
+    const server = app.listen(PORT, () => {
       console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
+      console.log('服务器启动成功，正在监听请求...');
     });
+    
+    server.on('error', (error) => {
+      console.error('❌ 服务器运行错误:', error.message);
+    });
+    
+    process.on('SIGINT', () => {
+      console.log('正在关闭服务器...');
+      server.close(() => {
+        console.log('服务器已关闭');
+        process.exit(0);
+      });
+    });
+    
   } catch (error) {
-    console.error('❌ 启动失败，数据库结构检查未通过:', error.message);
+    console.error('❌ 启动失败:', error.message);
+    console.error('错误堆栈:', error.stack);
     process.exit(1);
   }
 }
 
+console.log('开始启动服务器...');
 startServer();

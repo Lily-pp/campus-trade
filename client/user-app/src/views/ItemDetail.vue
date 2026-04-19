@@ -66,6 +66,9 @@
                 <el-button size="large" type="info" plain @click="messageSeller">
                   联系卖家
                 </el-button>
+                <el-button size="large" type="warning" plain @click="reportItem">
+                  举报
+                </el-button>
               </template>
             </div>
             <div class="action-bar" v-else>
@@ -222,6 +225,41 @@ const buyNow = async () => {
 const messageSeller = () => {
   if (!requireLogin()) return
   router.push(`/messages?to=${item.value.seller_id}&name=${item.value.seller_name}`)
+}
+
+const reportItem = async () => {
+  if (!requireLogin()) return
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      '请输入举报原因',
+      '举报商品',
+      {
+        confirmButtonText: '提交举报',
+        cancelButtonText: '取消',
+        inputPlaceholder: '请详细描述举报原因',
+        inputValidator: (value) => {
+          if (!value || value.trim().length < 5) {
+            return '举报原因至少5个字符'
+          }
+          return true
+        }
+      }
+    )
+    const res = await api.post('/reports', {
+      target_type: 'item',
+      target_id: parseInt(route.params.id),
+      reason: reason.trim()
+    })
+    if (res.data.code === 0) {
+      ElMessage.success('举报成功，我们会尽快处理')
+    } else {
+      ElMessage.warning(res.data.message)
+    }
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.message || '举报失败')
+    }
+  }
 }
 
 onMounted(() => {

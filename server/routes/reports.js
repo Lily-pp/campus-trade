@@ -11,6 +11,33 @@ const adminOnly = (req, res, next) => {
     next();
 };
 
+// ── POST /api/reports  创建举报 ──
+router.post('/', authenticate, async (req, res) => {
+    try {
+        const { target_type, target_id, reason } = req.body;
+
+        if (!target_type || !target_id || !reason) {
+            return res.status(400).json({ code: 1, message: '参数缺失', data: null });
+        }
+
+        if (!['item', 'user'].includes(target_type)) {
+            return res.status(400).json({ code: 1, message: '无效的举报类型', data: null });
+        }
+
+        const result = await db.query(
+            `INSERT INTO reports (reporter_id, target_type, target_id, reason, status)
+             VALUES ($1, $2, $3, $4, 'pending')
+             RETURNING id`,
+            [req.user.id, target_type, target_id, reason]
+        );
+
+        res.json({ code: 0, message: '举报成功', data: { report_id: result.rows[0].id } });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 1, message: '举报失败', data: null });
+    }
+});
+
 // ── GET /api/reports  举报列表（分页 + 状态筛选）──
 router.get('/', authenticate, adminOnly, async (req, res) => {
     try {
