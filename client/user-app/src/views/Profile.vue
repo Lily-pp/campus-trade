@@ -110,6 +110,16 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <!-- 我的举报 -->
+        <el-tab-pane label="我的举报" name="reports">
+          <div class="reports-section">
+            <el-button type="primary" plain @click="router.push('/reports')" class="view-reports-btn">
+              查看举报历史
+            </el-button>
+            <p class="reports-hint">查看您的举报记录和处理状态</p>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -331,5 +341,24 @@ onMounted(fetchPublished)
   margin-top: 6px;
   display: flex;
   justify-content: flex-end;
+}
+
+.reports-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  text-align: center;
+}
+
+.view-reports-btn {
+  margin-bottom: 16px;
+}
+
+.reports-hint {
+  color: #909399;
+  font-size: 14px;
+  margin: 0;
 }
 </style>

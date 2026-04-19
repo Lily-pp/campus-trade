@@ -80,6 +80,34 @@ router.get('/', authenticate, adminOnly, async (req, res) => {
     }
 });
 
+// ── GET /api/reports/my  用户查看自己的举报历史 ──
+router.get('/my', authenticate, async (req, res) => {
+    try {
+        const { page = 1, pageSize = 15 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(pageSize);
+
+        const countResult = await db.query(
+            `SELECT COUNT(*) FROM reports WHERE reporter_id = $1`,
+            [req.user.id]
+        );
+        const total = parseInt(countResult.rows[0].count);
+
+        const listResult = await db.query(
+            `SELECT id, target_type, target_id, reason, status, created_at, handled_at
+             FROM reports
+             WHERE reporter_id = $1
+             ORDER BY created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [req.user.id, parseInt(pageSize), offset]
+        );
+
+        res.json({ code: 0, message: 'success', data: { total, page: parseInt(page), list: listResult.rows } });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 1, message: '查询失败', data: null });
+    }
+});
+
 // ── PUT /api/reports/:id/handle  处理举报 ──
 // action: 'ignore' | 'takedown'（下架商品）| 'freeze'（冻结用户）
 router.put('/:id/handle', authenticate, adminOnly, async (req, res) => {
