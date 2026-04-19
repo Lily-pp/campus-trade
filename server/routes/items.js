@@ -137,7 +137,7 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
              LEFT JOIN categories c ON i.category_id = c.id
              LEFT JOIN users u ON i.user_id = u.id
              ${where}
-             ORDER BY i.created_at DESC
+             ORDER BY i.created_at DESC, i.id ASC
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
             params
         );
