@@ -3,8 +3,10 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middlewares/auth');
 
-// ── POST /api/favorites  添加收藏 ──
+// POST /api/favorites 添加收藏
 router.post('/', authenticate, async (req, res) => {
+    const client = await db.connect();
+
     try {
         const { item_id } = req.body;
 
@@ -12,29 +14,51 @@ router.post('/', authenticate, async (req, res) => {
             return res.status(400).json({ code: 1, message: '缺少 item_id', data: null });
         }
 
-        // 检查商品是否存在
-        const itemExists = await db.query('SELECT id FROM items WHERE id = $1', [item_id]);
+        const itemExists = await client.query('SELECT id FROM items WHERE id = $1', [item_id]);
         if (itemExists.rows.length === 0) {
             return res.status(404).json({ code: 1, message: '商品不存在', data: null });
         }
 
-        // 写入收藏（重复则忽略）
-        await db.query(
-            'INSERT INTO favorites (user_id, item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        await client.query('BEGIN');
+
+        // OpenGauss 对 ON CONFLICT 支持不稳定，这里改为兼容写法。
+        const insertResult = await client.query(
+            `INSERT INTO favorites (user_id, item_id)
+             SELECT $1, $2
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM favorites WHERE user_id = $1 AND item_id = $2
+             )`,
             [req.user.id, item_id]
         );
 
-        // 更新商品收藏计数
-        await db.query('UPDATE items SET favorites_count = favorites_count + 1 WHERE id = $1', [item_id]);
+        if (insertResult.rowCount > 0) {
+            await client.query(
+                'UPDATE items SET favorites_count = favorites_count + 1 WHERE id = $1',
+                [item_id]
+            );
+        }
 
-        res.json({ code: 0, message: '收藏成功', data: null });
+        await client.query('COMMIT');
+
+        res.json({
+            code: 0,
+            message: insertResult.rowCount > 0 ? '收藏成功' : '该商品已收藏',
+            data: null
+        });
     } catch (error) {
+        try {
+            await client.query('ROLLBACK');
+        } catch (_) {
+            // Ignore rollback failures and return the original error.
+        }
         console.error(error);
         res.status(500).json({ code: 1, message: '收藏失败', data: null });
+    } finally {
+        client.release();
     }
 });
 
-// ── DELETE /api/favorites/:item_id  取消收藏 ──
+// DELETE /api/favorites/:item_id 取消收藏
 router.delete('/:item_id', authenticate, async (req, res) => {
     try {
         const { item_id } = req.params;
@@ -48,7 +72,6 @@ router.delete('/:item_id', authenticate, async (req, res) => {
             return res.status(404).json({ code: 1, message: '未收藏该商品', data: null });
         }
 
-        // 减少收藏计数（防止变负数）
         await db.query(
             'UPDATE items SET favorites_count = GREATEST(favorites_count - 1, 0) WHERE id = $1',
             [item_id]
@@ -61,7 +84,7 @@ router.delete('/:item_id', authenticate, async (req, res) => {
     }
 });
 
-// ── GET /api/favorites/check/:item_id  检查是否已收藏 ──
+// GET /api/favorites/check/:item_id 检查是否已收藏
 router.get('/check/:item_id', authenticate, async (req, res) => {
     try {
         const { item_id } = req.params;
@@ -69,6 +92,7 @@ router.get('/check/:item_id', authenticate, async (req, res) => {
             'SELECT 1 FROM favorites WHERE user_id = $1 AND item_id = $2',
             [req.user.id, item_id]
         );
+
         res.json({ code: 0, message: 'success', data: { favorited: result.rows.length > 0 } });
     } catch (error) {
         console.error(error);
@@ -76,7 +100,7 @@ router.get('/check/:item_id', authenticate, async (req, res) => {
     }
 });
 
-// ── GET /api/favorites  我的收藏列表 ──
+// GET /api/favorites 我的收藏列表
 router.get('/', authenticate, async (req, res) => {
     try {
         const result = await db.query(
