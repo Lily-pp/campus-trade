@@ -26,7 +26,7 @@
             <div v-for="item in cartItems" :key="item.item_id" class="cart-item">
               <el-checkbox v-model="item.checked" @change="updateAllChecked" />
               <div class="cart-img" @click="router.push(`/item/${item.item_id}`)">
-                <img v-if="item.cover_image" :src="'http://localhost:3000' + item.cover_image" alt="" />
+                <img v-if="item.cover_image" v-lazy="'http://localhost:3000' + item.cover_image" alt="" />
                 <el-icon v-else :size="32" color="#ccc"><Picture /></el-icon>
               </div>
               <div class="cart-info" @click="router.push(`/item/${item.item_id}`)">

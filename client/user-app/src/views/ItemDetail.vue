@@ -10,7 +10,7 @@
             <template v-if="item.images && item.images.length > 0">
               <el-carousel :interval="4000" height="380px" indicator-position="outside">
                 <el-carousel-item v-for="img in item.images" :key="img.id">
-                  <img :src="img.url.startsWith('http') ? img.url : `http://localhost:3000${img.url}`" class="item-img" />
+                  <img v-lazy="img.url.startsWith('http') ? img.url : `http://localhost:3000${img.url}`" class="item-img" />
                 </el-carousel-item>
               </el-carousel>
             </template>
@@ -104,10 +104,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Star, StarFilled, Picture, Location } from '@element-plus/icons-vue'
 import api from '@/api'
 import { useUserStore } from '@/stores/user'
+import { useItemStore } from '@/stores/item'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const itemStore = useItemStore()
 
 const item = ref(null)
 const loading = ref(false)
@@ -130,9 +132,9 @@ const formatTime = (t) => t ? new Date(t).toLocaleDateString('zh-CN') : ''
 const fetchItem = async () => {
   loading.value = true
   try {
-    const res = await api.get(`/items/${route.params.id}`)
-    if (res.data.code === 0) {
-      item.value = res.data.data
+    const res = await itemStore.fetchItemDetail(route.params.id)
+    if (res.code === 0) {
+      item.value = res.data
     }
   } catch (e) {
     console.error(e)

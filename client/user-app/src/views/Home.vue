@@ -35,7 +35,7 @@
         @click="router.push(`/item/${item.id}`)"
       >
         <div class="card-img">
-          <img v-if="item.cover_image" :src="item.cover_image.startsWith('http') ? item.cover_image : `http://localhost:3000${item.cover_image}`" class="card-img-real" />
+          <img v-if="item.cover_image" v-lazy="item.cover_image.startsWith('http') ? item.cover_image : `http://localhost:3000${item.cover_image}`" class="card-img-real" />
           <div v-else class="card-img-placeholder">
             <el-icon :size="32"><Picture /></el-icon>
           </div>
@@ -79,9 +79,12 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Picture } from '@element-plus/icons-vue'
 import api from '@/api'
+import { throttle, debounce } from '@/utils/performance'
+import { useItemStore } from '@/stores/item'
 
 const router = useRouter()
 const route = useRoute()
+const itemStore = useItemStore()
 
 const items = ref([])
 const categories = ref([])
@@ -96,8 +99,8 @@ const filters = ref({
 
 const fetchCategories = async () => {
   try {
-    const res = await api.get('/categories')
-    categories.value = res.data.code === 0 ? res.data.data : res.data
+    const res = await itemStore.fetchCategories()
+    categories.value = res.code === 0 ? res.data : res
   } catch (e) {
     console.error('获取分类失败', e)
   }
@@ -106,18 +109,14 @@ const fetchCategories = async () => {
 const fetchItems = async () => {
   loading.value = true
   try {
-    const params = {
-      page: page.value,
-      pageSize,
-      sort: filters.value.sort
-    }
-    if (filters.value.category_id) params.category_id = filters.value.category_id
-    if (route.query.keyword) params.keyword = route.query.keyword
-
-    const res = await api.get('/items', { params })
-    if (res.data.code === 0) {
-      items.value = res.data.data.list
-      total.value = res.data.data.total
+    const res = await itemStore.fetchItems(page.value, pageSize, {
+      category_id: filters.value.category_id,
+      sort: filters.value.sort,
+      keyword: route.query.keyword
+    })
+    if (res.code === 0) {
+      items.value = res.data.list
+      total.value = res.data.total
     }
   } catch (e) {
     console.error('获取商品失败', e)
@@ -125,10 +124,11 @@ const fetchItems = async () => {
   loading.value = false
 }
 
-const onFilterChange = () => {
+// 节流过滤变化 - 避免频繁切换分类和排序时的重复请求
+const onFilterChange = throttle(() => {
   page.value = 1
   fetchItems()
-}
+}, 300)
 
 const clearSearch = () => {
   router.push('/')

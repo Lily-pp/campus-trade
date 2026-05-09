@@ -13,6 +13,7 @@
             placeholder="搜索商品..."
             clearable
             @keyup.enter="handleSearch"
+            @input="debouncedSearch"
             @clear="handleClear"
           >
             <template #append>
@@ -63,7 +64,10 @@
     </header>
 
     <main class="main-content">
-      <router-view />
+      <keep-alive>
+        <router-view v-if="$route.meta.keepAlive" />
+      </keep-alive>
+      <router-view v-if="!$route.meta.keepAlive" />
     </main>
 
     <footer class="footer">
@@ -77,6 +81,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { debounce } from '@/utils/performance'
 
 const router = useRouter()
 const route = useRoute()
@@ -91,6 +96,9 @@ const handleSearch = () => {
     router.push('/')
   }
 }
+
+// 防抖搜索 - 在用户停止输入 500ms 后执行搜索
+const debouncedSearch = debounce(handleSearch, 500)
 
 const handleClear = () => {
   router.push('/')

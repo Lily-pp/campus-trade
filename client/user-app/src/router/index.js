@@ -19,12 +19,14 @@ const routes = [
       {
         path: '',
         name: 'home',
-        component: () => import('@/views/Home.vue')
+        component: () => import('@/views/Home.vue'),
+        meta: { keepAlive: true, preload: true } // 首页缓存和预加载
       },
       {
         path: 'item/:id',
         name: 'itemDetail',
-        component: () => import('@/views/ItemDetail.vue')
+        component: () => import('@/views/ItemDetail.vue'),
+        meta: { keepAlive: true } // 商品详情缓存
       },
       {
         path: 'publish',
@@ -35,13 +37,13 @@ const routes = [
       {
         path: 'cart',
         name: 'cart',
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, keepAlive: true }, // 购物车缓存
         component: () => import('@/views/Cart.vue')
       },
       {
         path: 'orders',
         name: 'myOrders',
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, keepAlive: true }, // 订单缓存
         component: () => import('@/views/MyOrders.vue')
       },
       {
@@ -70,6 +72,33 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+// 路由预加载 - 在浏览器空闲时预加载高频页面
+const preloadRoutes = ['home', 'itemDetail', 'cart']
+const preloadIfIdleSupported = () => {
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+      preloadRoutes.forEach(name => {
+        const route = routes[routes.length - 1].children.find(r => r.name === name)
+        if (route && route.component) {
+          route.component()
+        }
+      })
+    })
+  } else {
+    // Fallback: 在 2 秒后预加载
+    setTimeout(() => {
+      preloadRoutes.forEach(name => {
+        const route = routes[routes.length - 1].children.find(r => r.name === name)
+        if (route && route.component) {
+          route.component()
+        }
+      })
+    }, 2000)
+  }
+}
+
+router.isReady().then(preloadIfIdleSupported)
 
 router.beforeEach((to) => {
   const token = localStorage.getItem('client_token')
