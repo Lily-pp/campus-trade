@@ -79,12 +79,34 @@ UPDATE items
 SET is_approved = CASE WHEN status = 'pending' THEN FALSE ELSE TRUE END
 WHERE is_approved IS DISTINCT FROM CASE WHEN status = 'pending' THEN FALSE ELSE TRUE END;
 
--- 历史数据修正：已售商品库存统一归零，避免“已售但仍有库存”导致前端展示异常
+-- 历史数据修正：已售商品库存统一归零，避免”已售但仍有库存”导致前端展示异常
 UPDATE items
 SET quantity = 0,
 	updated_at = CURRENT_TIMESTAMP
 WHERE status = 'sold'
   AND COALESCE(quantity, 1) <> 0;
+
+-- 兼容旧数据库迁移：若 items 表已存在但缺少评价相关列
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'items'
+		  AND column_name = 'avg_rating'
+	) THEN
+		EXECUTE 'ALTER TABLE items ADD COLUMN avg_rating DECIMAL(3,2)';
+	END IF;
+
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'items'
+		  AND column_name = 'review_count'
+	) THEN
+		EXECUTE 'ALTER TABLE items ADD COLUMN review_count INTEGER DEFAULT 0';
+	END IF;
+END $$;
 
 -- 收藏表
 CREATE TABLE IF NOT EXISTS favorites (
@@ -210,6 +232,23 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);
 CREATE INDEX IF NOT EXISTS idx_cart_user ON cart(user_id);
 
+-- 评价表
+CREATE TABLE IF NOT EXISTS reviews (
+	id SERIAL PRIMARY KEY,
+	item_id INTEGER NOT NULL,
+	order_id INTEGER NOT NULL,
+	reviewer_id INTEGER NOT NULL,
+	rating SMALLINT NOT NULL,
+	content TEXT,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(order_id, reviewer_id),
+	FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+	FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+	FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_item ON reviews(item_id);
+
 -- 初始化分类
 INSERT INTO categories (name, parent_id, sort_order)
 SELECT '学习用品', 0, 1 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = '学习用品' AND parent_id = 0);
@@ -221,6 +260,7 @@ INSERT INTO categories (name, parent_id, sort_order)
 SELECT '数码产品', 0, 4 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = '数码产品' AND parent_id = 0);
 
 -- 清空测试数据（按外键依赖顺序）
+DELETE FROM reviews;
 DELETE FROM messages;
 DELETE FROM cart;
 DELETE FROM admin_logs;
@@ -241,6 +281,7 @@ ALTER SEQUENCE IF EXISTS reports_id_seq RESTART WITH 1;
 ALTER SEQUENCE IF EXISTS admin_logs_id_seq RESTART WITH 1;
 ALTER SEQUENCE IF EXISTS cart_id_seq RESTART WITH 1;
 ALTER SEQUENCE IF EXISTS messages_id_seq RESTART WITH 1;
+ALTER SEQUENCE IF EXISTS reviews_id_seq RESTART WITH 1;
 
 -- 测试用户
 INSERT INTO users (username, password, real_name, role, campus) VALUES
@@ -260,9 +301,21 @@ INSERT INTO items (title, description, price, category_id, user_id, status, is_a
 ('英语四级真题合集', '2020-2024年真题，附答案解析', 30, 1, 5, 'on_sale', TRUE, 1),
 ('机械键盘', '87键青轴，九成新', 180, 4, 5, 'pending', FALSE, 1);
 
--- 测试订单（buyer_id=4=李四 购买 item_id=1=iPhone）
-INSERT INTO orders (item_id, buyer_id, seller_id, price, status)
-VALUES (1, 4, 3, 3800, 'pending');
+-- 测试订单
+-- order_id=1: 李四购买 iPhone 13（张三卖）
+-- order_id=2: 王五购买 高数教材（张三卖）
+INSERT INTO orders (item_id, buyer_id, seller_id, price, status) VALUES
+(1, 4, 3, 3800, 'completed'),
+(2, 5, 3, 25,   'completed');
+
+-- 测试评价（基于以上订单）
+INSERT INTO reviews (item_id, order_id, reviewer_id, rating, content) VALUES
+(1, 1, 4, 5, '手机非常新，和描述完全一致，卖家发货很快，强烈推荐！'),
+(2, 2, 5, 4, '书的品相很好，几乎没有笔记，物超所值。');
+
+-- 同步 items 的评分统计
+UPDATE items SET avg_rating = 5.0, review_count = 1 WHERE id = 1;
+UPDATE items SET avg_rating = 4.0, review_count = 1 WHERE id = 2;
 
 -- 测试举报
 INSERT INTO reports (reporter_id, target_type, target_id, reason, status)

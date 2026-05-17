@@ -36,6 +36,10 @@
               </el-descriptions-item>
               <el-descriptions-item label="浏览量">{{ item.views_count || 0 }}</el-descriptions-item>
               <el-descriptions-item label="收藏数">{{ item.favorites_count || 0 }}</el-descriptions-item>
+              <el-descriptions-item v-if="item.review_count" label="评分">
+                <el-rate :model-value="Number(item.avg_rating || 0)" disabled show-score />
+                <span style="color:#909399;font-size:12px;margin-left:4px">({{ item.review_count }}条)</span>
+              </el-descriptions-item>
               <el-descriptions-item label="发布时间">{{ formatTime(item.created_at) }}</el-descriptions-item>
             </el-descriptions>
 
@@ -93,6 +97,56 @@
       </el-card>
     </template>
 
+    <!-- 商品评价 -->
+    <el-card v-if="item" class="reviews-card" shadow="never">
+      <template #header>
+        <div class="reviews-header">
+          <span style="font-weight:600">商品评价</span>
+          <span v-if="item.review_count" style="color:#909399;font-size:13px;margin-left:8px">共 {{ item.review_count }} 条</span>
+          <el-rate v-if="item.avg_rating" :model-value="Number(item.avg_rating)" disabled show-score style="margin-left:auto" />
+        </div>
+      </template>
+
+      <!-- 发表评价表单 -->
+      <div v-if="canReviewInfo.canReview" class="review-form">
+        <div class="review-form-title">发表评价</div>
+        <el-rate v-model="reviewForm.rating" style="margin-bottom:8px" />
+        <el-input
+          v-model="reviewForm.content"
+          type="textarea"
+          :rows="3"
+          placeholder="分享你的购买体验（选填）"
+          maxlength="500"
+          show-word-limit
+        />
+        <el-button type="primary" style="margin-top:10px" :loading="submittingReview" @click="submitReview">
+          提交评价
+        </el-button>
+      </div>
+
+      <!-- 评价列表 -->
+      <div v-if="reviews.length > 0" class="review-list">
+        <div v-for="review in reviews" :key="review.id" class="review-item">
+          <div class="review-top">
+            <el-avatar :size="32" icon="UserFilled" />
+            <div class="review-meta">
+              <span class="reviewer-name">{{ review.reviewer_name }}</span>
+              <el-rate :model-value="review.rating" disabled size="small" />
+            </div>
+            <span class="review-date">{{ formatTime(review.created_at) }}</span>
+            <el-button
+              v-if="userStore.user && userStore.user.id === review.reviewer_id"
+              text type="danger" size="small"
+              @click="deleteReview(review.id)"
+            >删除</el-button>
+          </div>
+          <div v-if="review.content" class="review-content">{{ review.content }}</div>
+        </div>
+      </div>
+
+      <el-empty v-else-if="!canReviewInfo.canReview" description="暂无评价" :image-size="60" />
+    </el-card>
+
     <el-empty v-if="!item && !loading" description="商品不存在" />
   </div>
 </template>
@@ -115,6 +169,11 @@ const item = ref(null)
 const loading = ref(false)
 const isFavorited = ref(false)
 const favLoading = ref(false)
+
+const reviews = ref([])
+const canReviewInfo = ref({ canReview: false, reason: '', orderId: null })
+const reviewForm = ref({ rating: 5, content: '' })
+const submittingReview = ref(false)
 
 const statusMap = { on_sale: '在售', sold: '已售', off: '已下架', pending: '审核中', rejected: '审核未通过' }
 const statusType = { on_sale: 'success', sold: 'info', off: 'warning', pending: '', rejected: 'danger' }
@@ -264,10 +323,69 @@ const reportItem = async () => {
   }
 }
 
+const fetchReviews = async () => {
+  try {
+    const res = await api.get(`/reviews/item/${route.params.id}`)
+    if (res.data.code === 0) reviews.value = res.data.data
+  } catch (e) { /* ignore */ }
+}
+
+const checkCanReview = async () => {
+  if (!userStore.isLoggedIn) return
+  try {
+    const res = await api.get(`/reviews/can-review/${route.params.id}`)
+    if (res.data.code === 0) canReviewInfo.value = res.data.data
+  } catch (e) { /* ignore */ }
+}
+
+const submitReview = async () => {
+  if (!reviewForm.value.rating) return ElMessage.warning('请选择评分')
+  submittingReview.value = true
+  try {
+    const res = await api.post('/reviews', {
+      item_id: parseInt(route.params.id),
+      order_id: canReviewInfo.value.orderId,
+      rating: reviewForm.value.rating,
+      content: reviewForm.value.content
+    })
+    if (res.data.code === 0) {
+      ElMessage.success('评价成功')
+      canReviewInfo.value = { canReview: false, reason: 'already_reviewed', orderId: null }
+      reviewForm.value = { rating: 5, content: '' }
+      await fetchReviews()
+      await fetchItem()
+    } else {
+      ElMessage.warning(res.data.message)
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '评价失败')
+  }
+  submittingReview.value = false
+}
+
+const deleteReview = async (reviewId) => {
+  try {
+    await ElMessageBox.confirm('确认删除这条评价？', '删除评价', {
+      confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning'
+    })
+    const res = await api.delete(`/reviews/${reviewId}`)
+    if (res.data.code === 0) {
+      ElMessage.success('已删除')
+      await fetchReviews()
+      await fetchItem()
+      canReviewInfo.value = { canReview: true, orderId: canReviewInfo.value.orderId }
+    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
 onMounted(() => {
   fetchItem()
   checkFavorite()
   recordView()
+  fetchReviews()
+  checkCanReview()
 })
 </script>
 
@@ -305,4 +423,18 @@ onMounted(() => {
   font-size: 13px; color: #909399;
   display: flex; align-items: center; gap: 3px; margin-top: 4px;
 }
+
+.reviews-card { margin-bottom: 16px; }
+.reviews-header { display: flex; align-items: center; }
+
+.review-form { padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 16px; }
+.review-form-title { font-weight: 500; margin-bottom: 8px; }
+
+.review-list { display: flex; flex-direction: column; gap: 12px; }
+.review-item { padding: 12px; border: 1px solid #f0f0f0; border-radius: 8px; }
+.review-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.review-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.reviewer-name { font-size: 14px; font-weight: 500; color: #303133; }
+.review-date { font-size: 12px; color: #c0c4cc; margin-left: auto; }
+.review-content { font-size: 14px; color: #606266; line-height: 1.6; padding-left: 42px; }
 </style>
