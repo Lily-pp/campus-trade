@@ -33,8 +33,32 @@ async function ensureItemSchema() {
   `);
 }
 
+async function ensureReviewsSchema() {
+  await ensureColumn('items', 'avg_rating', 'DECIMAL(3,2)');
+  await ensureColumn('items', 'review_count', 'INTEGER DEFAULT 0');
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      item_id INTEGER NOT NULL,
+      order_id INTEGER NOT NULL,
+      reviewer_id INTEGER NOT NULL,
+      rating SMALLINT NOT NULL,
+      content TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(order_id, reviewer_id),
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_reviews_item ON reviews(item_id)`);
+}
+
 async function ensureSchema() {
   await ensureItemSchema();
+  await ensureReviewsSchema();
 }
 
 module.exports = { ensureSchema };

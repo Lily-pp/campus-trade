@@ -1,6 +1,9 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
+const { verifyToken } = require('./utils/jwt');
 
 const authRoutes      = require('./routes/auth');
 const itemRoutes      = require('./routes/items');
@@ -15,10 +18,32 @@ const logRoutes       = require('./routes/logs');
 const cartRoutes      = require('./routes/cart');
 const uploadRoutes    = require('./routes/upload');
 const messageRoutes   = require('./routes/messages');
+const reviewRoutes         = require('./routes/reviews');
+const recommendationRoutes = require('./routes/recommendations');
 const { ensureSchema } = require('./scripts/ensure-schema');
 
 const path = require('path');
 const app = express();
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: { origin: '*' }
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  const decoded = verifyToken(token);
+  if (!decoded) return next(new Error('未授权'));
+  socket.userId = decoded.id || decoded.user_id;
+  next();
+});
+
+io.on('connection', (socket) => {
+  socket.join(`user:${socket.userId}`);
+  socket.on('disconnect', () => {});
+});
+
+app.set('io', io);
 
 app.use(cors());
 app.use(express.json());
@@ -42,6 +67,8 @@ app.use('/api/logs',       logRoutes);
 app.use('/api/cart',       cartRoutes);
 app.use('/api/upload',     uploadRoutes);
 app.use('/api/messages',   messageRoutes);
+app.use('/api/reviews',         reviewRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 app.get('/', (req, res) => {
     res.json({ message: 'CampusTrade API 运行中' });
@@ -56,21 +83,18 @@ async function startServer() {
     await ensureSchema();
     console.log('数据库结构检查完成');
     
-    const server = app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
       console.log('服务器启动成功，正在监听请求...');
     });
-    
-    server.on('error', (error) => {
+
+    httpServer.on('error', (error) => {
       console.error('❌ 服务器运行错误:', error.message);
     });
-    
+
     process.on('SIGINT', () => {
       console.log('正在关闭服务器...');
-      server.close(() => {
-        console.log('服务器已关闭');
-        process.exit(0);
-      });
+      process.exit(0);
     });
     
   } catch (error) {

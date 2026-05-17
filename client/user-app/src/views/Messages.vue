@@ -55,6 +55,7 @@
 <script setup>
 import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { io } from 'socket.io-client'
 import api from '../api'
 import { ElMessage } from 'element-plus'
 
@@ -65,7 +66,7 @@ const currentChat = ref(null)
 const chatMessages = ref([])
 const newMessage = ref('')
 const msgListRef = ref(null)
-let pollTimer = null
+let socket = null
 
 const fetchConversations = async () => {
   try {
@@ -151,17 +152,22 @@ onMounted(async () => {
       }
     }
   }
-  // 轮询新消息
-  pollTimer = setInterval(async () => {
+  // Socket.io 实时连接
+  const token = localStorage.getItem('client_token')
+  socket = io('http://localhost:3000', { auth: { token } })
+
+  socket.on('message:receive', async (msg) => {
     await fetchConversations()
-    if (currentChat.value) {
-      await fetchMessages(currentChat.value.user_id)
+    if (currentChat.value && currentChat.value.user_id === msg.sender_id) {
+      chatMessages.value.push(msg)
+      await nextTick()
+      scrollToBottom()
     }
-  }, 5000)
+  })
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (socket) socket.disconnect()
 })
 </script>
 

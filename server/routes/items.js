@@ -51,7 +51,8 @@ router.get('/', async (req, res) => {
         const orderMap = {
             newest: 'i.created_at DESC',
             price_asc: 'i.price ASC',
-            price_desc: 'i.price DESC'
+            price_desc: 'i.price DESC',
+            hot: 'i.views_count DESC'
         };
         const orderBy = orderMap[sort] || orderMap.newest;
 
