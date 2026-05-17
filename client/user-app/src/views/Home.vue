@@ -15,7 +15,35 @@
           <el-option label="最新发布" value="newest" />
           <el-option label="价格最低" value="price_asc" />
           <el-option label="价格最高" value="price_desc" />
+          <el-option label="最热门" value="hot" />
         </el-select>
+      </div>
+    </div>
+
+    <!-- 热门商品（无搜索、无分类筛选时显示） -->
+    <div v-if="!route.query.keyword && !filters.category_id && trending.length > 0" class="trending-section">
+      <div class="section-title">近期热门</div>
+      <div class="trending-grid">
+        <div
+          v-for="tItem in trending"
+          :key="tItem.id"
+          class="trending-card"
+          @click="router.push(`/item/${tItem.id}`)"
+        >
+          <div class="trending-img">
+            <img v-if="tItem.cover_image" v-lazy="tItem.cover_image.startsWith('http') ? tItem.cover_image : `http://localhost:3000${tItem.cover_image}`" class="trending-img-real" />
+            <div v-else class="trending-img-placeholder">
+              <el-icon :size="24"><Picture /></el-icon>
+            </div>
+          </div>
+          <div class="trending-info">
+            <div class="trending-title">{{ tItem.title }}</div>
+            <div class="trending-bottom">
+              <span class="trending-price">¥{{ tItem.price }}</span>
+              <span class="trending-views"><el-icon><View /></el-icon>{{ tItem.views_count || 0 }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -87,6 +115,7 @@ const route = useRoute()
 const itemStore = useItemStore()
 
 const items = ref([])
+const trending = ref([])
 const categories = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -139,9 +168,17 @@ watch(() => route.query.keyword, () => {
   fetchItems()
 })
 
+const fetchTrending = async () => {
+  try {
+    const res = await api.get('/recommendations/trending')
+    if (res.data.code === 0) trending.value = res.data.data
+  } catch (e) { /* ignore */ }
+}
+
 onMounted(() => {
   fetchCategories()
   fetchItems()
+  fetchTrending()
 })
 </script>
 
@@ -261,4 +298,39 @@ onMounted(() => {
   margin-top: 24px;
   padding-bottom: 20px;
 }
+
+.trending-section { margin-bottom: 24px; }
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+.trending-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.trending-card {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  transition: box-shadow 0.2s;
+}
+.trending-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.trending-img { width: 64px; height: 64px; flex-shrink: 0; border-radius: 6px; overflow: hidden; background: #f5f5f5; }
+.trending-img-real { width: 100%; height: 100%; object-fit: cover; }
+.trending-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #bbb; }
+.trending-info { flex: 1; min-width: 0; }
+.trending-title { font-size: 13px; font-weight: 500; color: #303133; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trending-bottom { display: flex; align-items: center; justify-content: space-between; }
+.trending-price { font-size: 14px; color: #f56c6c; font-weight: bold; }
+.trending-views { font-size: 12px; color: #c0c4cc; display: flex; align-items: center; gap: 2px; }
 </style>

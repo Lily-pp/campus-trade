@@ -147,6 +147,28 @@
       <el-empty v-else-if="!canReviewInfo.canReview" description="暂无评价" :image-size="60" />
     </el-card>
 
+    <!-- 相关推荐 -->
+    <el-card v-if="similarItems.length > 0" class="similar-card" shadow="never">
+      <template #header><span style="font-weight:600">相关推荐</span></template>
+      <div class="similar-grid">
+        <div
+          v-for="sItem in similarItems"
+          :key="sItem.id"
+          class="similar-item"
+          @click="router.push(`/item/${sItem.id}`)"
+        >
+          <div class="similar-img">
+            <img v-if="sItem.cover_image" v-lazy="sItem.cover_image.startsWith('http') ? sItem.cover_image : `http://localhost:3000${sItem.cover_image}`" class="similar-img-real" />
+            <div v-else class="similar-img-placeholder"><el-icon :size="24"><Picture /></el-icon></div>
+          </div>
+          <div class="similar-info">
+            <div class="similar-title">{{ sItem.title }}</div>
+            <div class="similar-price">¥{{ sItem.price }}</div>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
     <el-empty v-if="!item && !loading" description="商品不存在" />
   </div>
 </template>
@@ -171,6 +193,7 @@ const isFavorited = ref(false)
 const favLoading = ref(false)
 
 const reviews = ref([])
+const similarItems = ref([])
 const canReviewInfo = ref({ canReview: false, reason: '', orderId: null })
 const reviewForm = ref({ rating: 5, content: '' })
 const submittingReview = ref(false)
@@ -380,12 +403,20 @@ const deleteReview = async (reviewId) => {
   }
 }
 
+const fetchSimilar = async () => {
+  try {
+    const res = await api.get(`/recommendations/similar/${route.params.id}`)
+    if (res.data.code === 0) similarItems.value = res.data.data
+  } catch (e) { /* ignore */ }
+}
+
 onMounted(() => {
   fetchItem()
   checkFavorite()
   recordView()
   fetchReviews()
   checkCanReview()
+  fetchSimilar()
 })
 </script>
 
@@ -437,4 +468,30 @@ onMounted(() => {
 .reviewer-name { font-size: 14px; font-weight: 500; color: #303133; }
 .review-date { font-size: 12px; color: #c0c4cc; margin-left: auto; }
 .review-content { font-size: 14px; color: #606266; line-height: 1.6; padding-left: 42px; }
+
+.similar-card { margin-bottom: 16px; }
+.similar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.similar-item {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.similar-item:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+.similar-img { height: 120px; overflow: hidden; background: #f5f5f5; }
+.similar-img-real { width: 100%; height: 100%; object-fit: cover; }
+.similar-img-placeholder {
+  height: 100%; display: flex; align-items: center; justify-content: center; color: #bbb;
+}
+.similar-info { padding: 8px 10px; }
+.similar-title {
+  font-size: 13px; color: #303133; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px;
+}
+.similar-price { font-size: 14px; color: #f56c6c; font-weight: bold; }
 </style>

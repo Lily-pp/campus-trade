@@ -30,7 +30,7 @@ router.get('/conversations', authenticate, async (req, res) => {
             LEFT JOIN LATERAL (
                 SELECT COUNT(*)::int AS unread_count
                 FROM messages
-                WHERE sender_id = m.other_id AND receiver_id = $1 AND is_read = false
+                WHERE sender_id = m.other_id AND receiver_id = $1 AND is_read = 0
             ) uc ON true
             ORDER BY other_id, m.created_at DESC
         `, [userId]);
@@ -51,7 +51,7 @@ router.get('/conversations', authenticate, async (req, res) => {
 router.get('/unread-count', authenticate, async (req, res) => {
     try {
         const result = await db.query(
-            'SELECT COUNT(*)::int AS count FROM messages WHERE receiver_id = $1 AND is_read = false',
+            'SELECT COUNT(*)::int AS count FROM messages WHERE receiver_id = $1 AND is_read = 0',
             [req.user.id]
         );
         res.json({ code: 0, message: 'success', data: { count: result.rows[0].count } });
@@ -83,7 +83,7 @@ router.get('/:userId', authenticate, async (req, res) => {
 
         // 将对方发给我的未读消息标为已读
         await db.query(
-            'UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false',
+            'UPDATE messages SET is_read = 1 WHERE sender_id = $1 AND receiver_id = $2 AND is_read = 0',
             [otherId, myId]
         );
 
@@ -134,7 +134,7 @@ router.put('/read/:userId', authenticate, async (req, res) => {
         const otherId = parseInt(req.params.userId);
 
         await db.query(
-            'UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false',
+            'UPDATE messages SET is_read = 1 WHERE sender_id = $1 AND receiver_id = $2 AND is_read = 0',
             [otherId, myId]
         );
 
