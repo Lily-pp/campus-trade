@@ -8,35 +8,47 @@ router.get('/conversations', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         // 获取所有会话：按对方用户分组，取最新一条消息
-        const result = await db.query(`
-            SELECT DISTINCT ON (other_id) 
-                other_id,
-                u.username AS other_username,
-                u.avatar AS other_avatar,
-                m.content AS last_message,
-                m.created_at AS last_time,
-                unread_count
-            FROM (
-                SELECT 
-                    CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END AS other_id,
-                    id, content, created_at
-                FROM messages
-                WHERE sender_id = $1 OR receiver_id = $1
-                ORDER BY 
-                    CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END,
-                    created_at DESC
-            ) m
-            LEFT JOIN users u ON u.id = m.other_id
-            LEFT JOIN LATERAL (
-                SELECT COUNT(*)::int AS unread_count
-                FROM messages
-                WHERE sender_id = m.other_id AND receiver_id = $1 AND is_read = 0
-            ) uc ON true
-            ORDER BY other_id, m.created_at DESC
+        // 先取所有与我有消息往来的用户 ID
+        const otherUsersRes = await db.query(`
+            SELECT DISTINCT
+                CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END AS user_id
+            FROM messages
+            WHERE sender_id = $1 OR receiver_id = $1
         `, [userId]);
 
-        // 按最新消息时间排序
-        const conversations = result.rows.sort((a, b) => 
+        const otherUserIds = otherUsersRes.rows.map(r => r.user_id);
+        if (otherUserIds.length === 0) {
+            return res.json({ code: 0, message: 'success', data: [] });
+        }
+
+        // 对每个用户，取最新一条消息和未读数
+        const rows = await Promise.all(otherUserIds.map(async (otherId) => {
+            const [lastMsg, unreadRes, userRes] = await Promise.all([
+                db.query(
+                    `SELECT content, created_at FROM messages
+                     WHERE (sender_id = $1 AND receiver_id = $2)
+                        OR (sender_id = $2 AND receiver_id = $1)
+                     ORDER BY created_at DESC LIMIT 1`,
+                    [userId, otherId]
+                ),
+                db.query(
+                    `SELECT COUNT(*)::int AS unread FROM messages
+                     WHERE sender_id = $1 AND receiver_id = $2 AND is_read = 0`,
+                    [otherId, userId]
+                ),
+                db.query(`SELECT username, avatar FROM users WHERE id = $1`, [otherId])
+            ]);
+            return {
+                user_id: otherId,
+                username: userRes.rows[0]?.username || '未知用户',
+                avatar: userRes.rows[0]?.avatar || null,
+                last_message: lastMsg.rows[0]?.content || '',
+                last_time: lastMsg.rows[0]?.created_at || null,
+                unread: unreadRes.rows[0]?.unread || 0
+            };
+        }));
+
+        const conversations = rows.sort((a, b) =>
             new Date(b.last_time) - new Date(a.last_time)
         );
 
@@ -120,7 +132,13 @@ router.post('/', authenticate, async (req, res) => {
             [senderId, receiver_id, content.trim(), item_id || null]
         );
 
-        res.json({ code: 0, message: '发送成功', data: result.rows[0] });
+        const message = result.rows[0];
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user:${receiver_id}`).emit('message:receive', message);
+        }
+
+        res.json({ code: 0, message: '发送成功', data: message });
     } catch (error) {
         console.error(error);
         res.status(500).json({ code: 1, message: '发送失败', data: null });
