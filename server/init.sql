@@ -322,3 +322,111 @@ INSERT INTO reports (reporter_id, target_type, target_id, reason, status)
 VALUES (4, 'item', 7, '商品描述与实物不符，疑似欺诈', 'pending');
 
 COMMIT;
+
+-- ============================================
+-- 标签系统表结构（新增）
+-- ============================================
+
+-- 标签表
+CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 商品-标签关联表
+CREATE TABLE IF NOT EXISTS item_tags (
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id, tag_id)
+);
+
+-- 给标签名加索引，提升模糊搜索性能
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+
+
+-- ============================================
+-- 标签系统表结构（新增）
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS item_tags (
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+
+
+
+
+-- ============================================
+-- 为测试商品关联标签（兼容写法）
+-- ============================================
+
+-- 给已有测试商品打标签
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id
+FROM items i
+CROSS JOIN tags t
+WHERE 
+    (i.title LIKE '%台灯%' AND t.name = '台灯')
+    OR (i.title LIKE '%机械键盘%' AND t.name = '键盘')
+    OR (i.title LIKE '%充电宝%' AND t.name = '充电宝')
+    OR (i.title LIKE '%算法导论%' AND t.name = '学习用品')
+    OR (i.title LIKE '%显示器%' AND t.name = '显示器')
+    AND NOT EXISTS (
+        SELECT 1 FROM item_tags 
+        WHERE item_id = i.id AND tag_id = t.id
+    );
+
+
+-- ============================================
+-- 新增测试商品（带标签）
+-- ============================================
+
+-- 商品1：机械键盘
+INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+VALUES ('机械键盘 87键 青轴', '手感极佳，几乎全新', 189.00, 4, 3, 'on_sale', TRUE, '徐汇校区', 1);
+
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id FROM items i CROSS JOIN tags t 
+WHERE i.title = '机械键盘 87键 青轴' 
+  AND t.name IN ('键盘', '数码', '学习用品')
+  AND NOT EXISTS (
+      SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
+  );
+
+-- 商品2：小米充电宝
+INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+VALUES ('小米充电宝 20000mAh', '支持快充，成色9成新', 89.00, 4, 4, 'on_sale', TRUE, '宝山校区', 3);
+
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id FROM items i CROSS JOIN tags t 
+WHERE i.title = '小米充电宝 20000mAh' 
+  AND t.name IN ('充电宝', '数码', '生活用品')
+  AND NOT EXISTS (
+      SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
+  );
+
+-- 商品3：算法导论
+INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+VALUES ('二手《算法导论》第四版', '经典教材，笔记清晰，适合考研', 55.00, 1, 5, 'on_sale', TRUE, '嘉定校区', 1);
+
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id FROM items i CROSS JOIN tags t 
+WHERE i.title LIKE '%算法导论%' 
+  AND t.name IN ('学习用品', '二手书')
+  AND NOT EXISTS (
+      SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
+  );
