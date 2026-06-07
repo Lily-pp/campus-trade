@@ -31,12 +31,6 @@ router.post('/', authenticate, async (req, res) => {
             [req.user.id, item_id]
         );
 
-        if (insertResult.rowCount > 0) {
-            await client.query(
-                'UPDATE items SET favorites_count = favorites_count + 1 WHERE id = $1',
-                [item_id]
-            );
-        }
 
         await client.query('COMMIT');
 
@@ -72,10 +66,7 @@ router.delete('/:item_id', authenticate, async (req, res) => {
             return res.status(404).json({ code: 1, message: '未收藏该商品', data: null });
         }
 
-        await db.query(
-            'UPDATE items SET favorites_count = GREATEST(favorites_count - 1, 0) WHERE id = $1',
-            [item_id]
-        );
+      
 
         res.json({ code: 0, message: '已取消收藏', data: null });
     } catch (error) {

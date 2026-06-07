@@ -226,11 +226,6 @@ router.get('/:id', async (req, res) => {
             [id]
         );
 
-        if (item.status === 'on_sale') {
-            await db.query('UPDATE items SET views_count = views_count + 1 WHERE id = $1', [id]);
-            item.views_count = (item.views_count || 0) + 1;
-        }
-
         const data = item;
         if (data.status === 'sold') {
             data.quantity = 0;

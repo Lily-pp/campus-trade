@@ -430,3 +430,112 @@ WHERE i.title LIKE '%算法导论%'
   AND NOT EXISTS (
       SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
   );
+
+
+ -- =====================================================
+-- CampusTrade 自动维护 Trigger（最终修复版）
+-- =====================================================
+
+-- 1. 收藏数自动维护
+DROP TRIGGER IF EXISTS trg_favorites_after_insert ON favorites;
+DROP TRIGGER IF EXISTS trg_favorites_after_delete ON favorites;
+DROP FUNCTION IF EXISTS update_item_favorites_count();
+
+CREATE OR REPLACE FUNCTION update_item_favorites_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE items 
+        SET favorites_count = COALESCE(favorites_count, 0) + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.item_id;
+        RETURN NEW;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE items 
+        SET favorites_count = GREATEST(COALESCE(favorites_count, 0) - 1, 0),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = OLD.item_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_favorites_after_insert
+AFTER INSERT ON favorites
+FOR EACH ROW EXECUTE PROCEDURE update_item_favorites_count();
+
+CREATE TRIGGER trg_favorites_after_delete
+AFTER DELETE ON favorites
+FOR EACH ROW EXECUTE PROCEDURE update_item_favorites_count();
+
+
+-- 2. 浏览量自动维护
+DROP TRIGGER IF EXISTS trg_views_log_after_insert ON views_log;
+DROP FUNCTION IF EXISTS update_item_views_count();
+
+CREATE OR REPLACE FUNCTION update_item_views_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE items 
+    SET views_count = COALESCE(views_count, 0) + 1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.item_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_views_log_after_insert
+AFTER INSERT ON views_log
+FOR EACH ROW EXECUTE PROCEDURE update_item_views_count();
+
+
+-- 3. 评价统计自动维护（review_count + avg_rating）【已修复】
+DROP TRIGGER IF EXISTS trg_reviews_after_insert ON reviews;
+DROP TRIGGER IF EXISTS trg_reviews_after_update ON reviews;
+DROP TRIGGER IF EXISTS trg_reviews_after_delete ON reviews;
+DROP FUNCTION IF EXISTS update_item_review_stats();
+
+CREATE OR REPLACE FUNCTION update_item_review_stats()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_item_id INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        v_item_id := OLD.item_id;
+    ELSE
+        v_item_id := NEW.item_id;
+    END IF;
+
+    -- 更新商品的评价统计
+    UPDATE items 
+    SET 
+        review_count = (SELECT COUNT(*) FROM reviews WHERE item_id = v_item_id),
+        avg_rating = (
+            SELECT COALESCE(ROUND(AVG(rating)::numeric, 2), 0) 
+            FROM reviews WHERE item_id = v_item_id
+        ),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = v_item_id;
+
+    -- 必须明确返回 NEW 或 OLD
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    ELSE
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_reviews_after_insert
+AFTER INSERT ON reviews
+FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
+
+CREATE TRIGGER trg_reviews_after_update
+AFTER UPDATE OF rating ON reviews
+FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
+
+CREATE TRIGGER trg_reviews_after_delete
+AFTER DELETE ON reviews
+FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
