@@ -539,3 +539,42 @@ FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
 CREATE TRIGGER trg_reviews_after_delete
 AFTER DELETE ON reviews
 FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
+
+
+-- ==================== CHECK 约束（数据完整性断言） ====================
+
+-- 商品表核心约束
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_price_positive 
+    CHECK (price > 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_quantity_non_negative 
+    CHECK (quantity >= 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_favorites_count_non_negative 
+    CHECK (favorites_count >= 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_views_count_non_negative 
+    CHECK (views_count >= 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_status_valid 
+    CHECK (status IN ('pending', 'on_sale', 'sold', 'off', 'rejected'));
+
+-- 评价表约束（非常重要）
+ALTER TABLE reviews 
+    ADD CONSTRAINT chk_reviews_rating_range 
+    CHECK (rating BETWEEN 1 AND 5);
+
+-- 可选：用户角色约束
+ALTER TABLE users 
+    ADD CONSTRAINT chk_users_role_valid 
+    CHECK (role IN ('user', 'admin', 'operator'));
+
+-- 可选：订单状态约束
+ALTER TABLE orders 
+    ADD CONSTRAINT chk_orders_status_valid 
+    CHECK (status IN ('pending', 'paid', 'completed', 'cancelled', 'refunded'));
