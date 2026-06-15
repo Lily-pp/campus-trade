@@ -322,3 +322,259 @@ INSERT INTO reports (reporter_id, target_type, target_id, reason, status)
 VALUES (4, 'item', 7, '商品描述与实物不符，疑似欺诈', 'pending');
 
 COMMIT;
+
+-- ============================================
+-- 标签系统表结构（新增）
+-- ============================================
+
+-- 标签表
+CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 商品-标签关联表
+CREATE TABLE IF NOT EXISTS item_tags (
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id, tag_id)
+);
+
+-- 给标签名加索引，提升模糊搜索性能
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+
+
+-- ============================================
+-- 标签系统表结构（新增）
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS item_tags (
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+
+
+
+
+-- ============================================
+-- 为测试商品关联标签（兼容写法）
+-- ============================================
+
+-- 给已有测试商品打标签
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id
+FROM items i
+CROSS JOIN tags t
+WHERE 
+    (i.title LIKE '%台灯%' AND t.name = '台灯')
+    OR (i.title LIKE '%机械键盘%' AND t.name = '键盘')
+    OR (i.title LIKE '%充电宝%' AND t.name = '充电宝')
+    OR (i.title LIKE '%算法导论%' AND t.name = '学习用品')
+    OR (i.title LIKE '%显示器%' AND t.name = '显示器')
+    AND NOT EXISTS (
+        SELECT 1 FROM item_tags 
+        WHERE item_id = i.id AND tag_id = t.id
+    );
+
+
+-- ============================================
+-- 新增测试商品（带标签）
+-- ============================================
+
+-- 商品1：机械键盘
+INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+VALUES ('机械键盘 87键 青轴', '手感极佳，几乎全新', 189.00, 4, 3, 'on_sale', TRUE, '徐汇校区', 1);
+
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id FROM items i CROSS JOIN tags t 
+WHERE i.title = '机械键盘 87键 青轴' 
+  AND t.name IN ('键盘', '数码', '学习用品')
+  AND NOT EXISTS (
+      SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
+  );
+
+-- 商品2：小米充电宝
+INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+VALUES ('小米充电宝 20000mAh', '支持快充，成色9成新', 89.00, 4, 4, 'on_sale', TRUE, '宝山校区', 3);
+
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id FROM items i CROSS JOIN tags t 
+WHERE i.title = '小米充电宝 20000mAh' 
+  AND t.name IN ('充电宝', '数码', '生活用品')
+  AND NOT EXISTS (
+      SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
+  );
+
+-- 商品3：算法导论
+INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
+VALUES ('二手《算法导论》第四版', '经典教材，笔记清晰，适合考研', 55.00, 1, 5, 'on_sale', TRUE, '嘉定校区', 1);
+
+INSERT INTO item_tags (item_id, tag_id)
+SELECT i.id, t.id FROM items i CROSS JOIN tags t 
+WHERE i.title LIKE '%算法导论%' 
+  AND t.name IN ('学习用品', '二手书')
+  AND NOT EXISTS (
+      SELECT 1 FROM item_tags WHERE item_id = i.id AND tag_id = t.id
+  );
+
+
+ -- =====================================================
+-- CampusTrade 自动维护 Trigger（最终修复版）
+-- =====================================================
+
+-- 1. 收藏数自动维护
+DROP TRIGGER IF EXISTS trg_favorites_after_insert ON favorites;
+DROP TRIGGER IF EXISTS trg_favorites_after_delete ON favorites;
+DROP FUNCTION IF EXISTS update_item_favorites_count();
+
+CREATE OR REPLACE FUNCTION update_item_favorites_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE items 
+        SET favorites_count = COALESCE(favorites_count, 0) + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.item_id;
+        RETURN NEW;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE items 
+        SET favorites_count = GREATEST(COALESCE(favorites_count, 0) - 1, 0),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = OLD.item_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_favorites_after_insert
+AFTER INSERT ON favorites
+FOR EACH ROW EXECUTE PROCEDURE update_item_favorites_count();
+
+CREATE TRIGGER trg_favorites_after_delete
+AFTER DELETE ON favorites
+FOR EACH ROW EXECUTE PROCEDURE update_item_favorites_count();
+
+
+-- 2. 浏览量自动维护
+DROP TRIGGER IF EXISTS trg_views_log_after_insert ON views_log;
+DROP FUNCTION IF EXISTS update_item_views_count();
+
+CREATE OR REPLACE FUNCTION update_item_views_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE items 
+    SET views_count = COALESCE(views_count, 0) + 1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.item_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_views_log_after_insert
+AFTER INSERT ON views_log
+FOR EACH ROW EXECUTE PROCEDURE update_item_views_count();
+
+
+-- 3. 评价统计自动维护（review_count + avg_rating）【已修复】
+DROP TRIGGER IF EXISTS trg_reviews_after_insert ON reviews;
+DROP TRIGGER IF EXISTS trg_reviews_after_update ON reviews;
+DROP TRIGGER IF EXISTS trg_reviews_after_delete ON reviews;
+DROP FUNCTION IF EXISTS update_item_review_stats();
+
+CREATE OR REPLACE FUNCTION update_item_review_stats()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_item_id INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        v_item_id := OLD.item_id;
+    ELSE
+        v_item_id := NEW.item_id;
+    END IF;
+
+    -- 更新商品的评价统计
+    UPDATE items 
+    SET 
+        review_count = (SELECT COUNT(*) FROM reviews WHERE item_id = v_item_id),
+        avg_rating = (
+            SELECT COALESCE(ROUND(AVG(rating)::numeric, 2), 0) 
+            FROM reviews WHERE item_id = v_item_id
+        ),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = v_item_id;
+
+    -- 必须明确返回 NEW 或 OLD
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    ELSE
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_reviews_after_insert
+AFTER INSERT ON reviews
+FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
+
+CREATE TRIGGER trg_reviews_after_update
+AFTER UPDATE OF rating ON reviews
+FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
+
+CREATE TRIGGER trg_reviews_after_delete
+AFTER DELETE ON reviews
+FOR EACH ROW EXECUTE PROCEDURE update_item_review_stats();
+
+
+-- ==================== CHECK 约束（数据完整性断言） ====================
+
+-- 商品表核心约束
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_price_positive 
+    CHECK (price > 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_quantity_non_negative 
+    CHECK (quantity >= 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_favorites_count_non_negative 
+    CHECK (favorites_count >= 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_views_count_non_negative 
+    CHECK (views_count >= 0);
+
+ALTER TABLE items 
+    ADD CONSTRAINT chk_items_status_valid 
+    CHECK (status IN ('pending', 'on_sale', 'sold', 'off', 'rejected'));
+
+-- 评价表约束（非常重要）
+ALTER TABLE reviews 
+    ADD CONSTRAINT chk_reviews_rating_range 
+    CHECK (rating BETWEEN 1 AND 5);
+
+-- 可选：用户角色约束
+ALTER TABLE users 
+    ADD CONSTRAINT chk_users_role_valid 
+    CHECK (role IN ('user', 'admin', 'operator'));
+
+-- 可选：订单状态约束
+ALTER TABLE orders 
+    ADD CONSTRAINT chk_orders_status_valid 
+    CHECK (status IN ('pending', 'paid', 'completed', 'cancelled', 'refunded'));

@@ -48,6 +48,23 @@
               <p>{{ item.description }}</p>
             </div>
 
+            <!-- ==================== 新增：标签展示 ==================== -->
+            <div class="tags-section" v-if="tags.length > 0">
+              <span class="section-label">标签：</span>
+              <el-tag
+                v-for="tag in tags"
+                :key="tag"
+                type="info"
+                effect="plain"
+                class="tag-item"
+                @click="goToTagPage(tag)"
+                style="cursor: pointer; margin-right: 8px; margin-bottom: 6px"
+              >
+                #{{ tag }}
+              </el-tag>
+            </div>
+
+
             <!-- 操作按钮区 -->
             <div class="action-bar" v-if="item.status === 'on_sale'">
               <el-button
@@ -59,6 +76,16 @@
               >
                 {{ isFavorited ? '已收藏' : '收藏' }}
               </el-button>
+              <!-- ==================== 新增：编辑按钮（仅本人可见） ==================== -->                
+              <el-button 
+                 v-if="isOwner" 
+                 type="warning" 
+                  size="large" 
+                  @click="goToEdit"
+              >
+                  编辑商品
+              </el-button>
+              <!-- ==================== 编辑按钮结束 ==================== -->
               <!-- 非自己发布的商品才显示购买与购物车 -->
               <template v-if="!isOwner">
                 <el-button size="large" type="primary" icon="ShoppingCart" @click="addToCart">
@@ -73,6 +100,7 @@
                 <el-button size="large" type="warning" plain @click="reportItem">
                   举报
                 </el-button>
+                
               </template>
             </div>
             <div class="action-bar" v-else>
@@ -191,6 +219,7 @@ const item = ref(null)
 const loading = ref(false)
 const isFavorited = ref(false)
 const favLoading = ref(false)
+const tags = ref([])
 
 const reviews = ref([])
 const similarItems = ref([])
@@ -217,6 +246,20 @@ const fetchItem = async () => {
     const res = await itemStore.fetchItemDetail(route.params.id)
     if (res.code === 0) {
       item.value = res.data
+
+      // ==================== 新增：获取商品标签 ====================
+      try {
+        // 临时方案：调用后端获取该商品的标签列表
+        // 注意：这个接口我们后面会补充，如果目前报 404 可以先注释掉
+        const tagRes = await api.get(`/items/${route.params.id}/tags`)
+        if (tagRes.data.code === 0) {
+          tags.value = tagRes.data.data || []
+        }
+      } catch (tagErr) {
+        console.log('获取标签失败（接口可能还未添加）', tagErr)
+        tags.value = []
+      }
+      // ==================== 标签获取结束 ====================
     }
   } catch (e) {
     console.error(e)
@@ -401,6 +444,22 @@ const deleteReview = async (reviewId) => {
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败')
   }
+}
+
+const goToTagPage = (tagName) => {
+  router.push({
+    path: '/',
+    query: {
+      keyword: tagName
+    }
+  })
+}
+
+const goToEdit = () => {
+    router.push({
+        path: '/publish',
+        query: { id: route.params.id }
+    })
 }
 
 const fetchSimilar = async () => {

@@ -55,55 +55,26 @@ router.get('/can-review/:itemId', authenticate, async (req, res) => {
 });
 
 // POST /api/reviews - 提交评价
+
 router.post('/', authenticate, async (req, res) => {
-  const client = await db.connect();
-  try {
     const { item_id, order_id, rating, content } = req.body;
-    const userId = req.user.id;
+    const reviewer_id = req.user.id;
 
-    if (!item_id || !order_id || !rating) {
-      return res.status(400).json({ code: 1, message: '缺少必要参数', data: null });
+    try {
+        await db.query(
+            `INSERT INTO reviews (item_id, order_id, reviewer_id, rating, content)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [item_id, order_id, reviewer_id, rating, content]
+        );
+
+        // 注意：不再需要手动更新 items 表的 review_count 和 avg_rating
+        // Trigger 会自动处理！
+
+        res.json({ code: 0, message: '评价成功' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ code: 1, message: '评价失败' });
     }
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({ code: 1, message: '评分需在1-5之间', data: null });
-    }
-
-    const orderRes = await client.query(
-      `SELECT id FROM orders WHERE id = $1 AND item_id = $2 AND buyer_id = $3`,
-      [order_id, item_id, userId]
-    );
-    if (orderRes.rows.length === 0) {
-      return res.status(403).json({ code: 1, message: '无权限评价此商品', data: null });
-    }
-
-    await client.query('BEGIN');
-
-    await client.query(
-      `INSERT INTO reviews (item_id, order_id, reviewer_id, rating, content)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [item_id, order_id, userId, rating, content?.trim() || null]
-    );
-
-    await client.query(
-      `UPDATE items SET
-         review_count = review_count + 1,
-         avg_rating = (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE item_id = $1)
-       WHERE id = $1`,
-      [item_id]
-    );
-
-    await client.query('COMMIT');
-    res.json({ code: 0, message: '评价成功', data: null });
-  } catch (e) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
-    if (e.code === '23505') {
-      return res.status(400).json({ code: 1, message: '已评价过该订单', data: null });
-    }
-    console.error(e);
-    res.status(500).json({ code: 1, message: '评价失败', data: null });
-  } finally {
-    client.release();
-  }
 });
 
 // DELETE /api/reviews/:id - 删除自己的评价
