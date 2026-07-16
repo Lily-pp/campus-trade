@@ -243,19 +243,30 @@ router.get('/:id', async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
     try {
         console.log('【发布商品】收到的 tags:', req.body.tags);
-        const { title, description, price, category_id, campus, images, quantity, tags } = req.body;
+        const { title, description, price, category_id, campus, images, quantity, tags, activity_id } = req.body;
 
         if (!title || price === undefined || !category_id) {
             return res.status(400).json({ code: 1, message: '标题、价格、分类不能为空', data: null });
         }
 
+        // 如果指定了 activity_id，验证活动存在且有效
+        if (activity_id) {
+            const activityCheck = await db.query(
+                `SELECT id FROM activities WHERE id = $1 AND is_enabled = TRUE`,
+                [parseInt(activity_id)]
+            );
+            if (activityCheck.rows.length === 0) {
+                return res.status(400).json({ code: 1, message: '所选活动不存在或已停用', data: null });
+            }
+        }
+
         const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
 
         const result = await db.query(
-            `INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity)
-             VALUES ($1, $2, $3, $4, $5, 'pending', FALSE, $6, $7)
+            `INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity, activity_id)
+             VALUES ($1, $2, $3, $4, $5, 'pending', FALSE, $6, $7, $8)
              RETURNING id`,
-            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty]
+            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty, activity_id ? parseInt(activity_id) : null]
         );
 
         const itemId = result.rows[0].id;
@@ -465,31 +476,44 @@ router.put('/:id', authenticate, async (req, res) => {
         }
 
         // 2. 提取可修改字段
-        const { 
-            title, description, price, category_id, campus, 
-            quantity, images, tags 
+        const {
+            title, description, price, category_id, campus,
+            quantity, images, tags, activity_id
         } = req.body;
+
+        // 如果指定了 activity_id，验证活动存在且有效
+        if (activity_id) {
+            const activityCheck = await db.query(
+                `SELECT id FROM activities WHERE id = $1 AND is_enabled = TRUE`,
+                [parseInt(activity_id)]
+            );
+            if (activityCheck.rows.length === 0) {
+                return res.status(400).json({ code: 1, message: '所选活动不存在或已停用', data: null });
+            }
+        }
 
         // 3. 更新商品基本信息，并重置审核状态
         await db.query(
-            `UPDATE items SET 
+            `UPDATE items SET
                 title = $1,
                 description = $2,
                 price = $3,
                 category_id = $4,
                 campus = $5,
                 quantity = $6,
+                activity_id = $7,
                 status = 'pending',
                 is_approved = FALSE,
                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $7`,
+             WHERE id = $8`,
             [
-                title, 
-                description || null, 
-                parseFloat(price), 
-                parseInt(category_id), 
-                campus || null, 
+                title,
+                description || null,
+                parseFloat(price),
+                parseInt(category_id),
+                campus || null,
                 parseInt(quantity) || 1,
+                activity_id ? parseInt(activity_id) : null,
                 itemId
             ]
         );

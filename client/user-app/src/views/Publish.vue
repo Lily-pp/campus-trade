@@ -21,6 +21,13 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="参加活动">
+          <el-select v-model="form.activity_id" placeholder="选择参加校园活动（可选）" style="width:100%" clearable>
+            <el-option label="不参加活动" :value="null" />
+            <el-option v-for="act in activities" :key="act.id" :label="act.name" :value="act.id" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="价格" prop="price">
           <el-input-number v-model="form.price" :min="0.01" :precision="2" :step="10" style="width:200px" />
           <span style="margin-left:8px;color:#909399">元</span>
@@ -104,6 +111,7 @@ const route = useRoute()
 const formRef = ref(null)
 const loading = ref(false)
 const categories = ref([])
+const activities = ref([])
 const fileList = ref([])
 const uploadedImages = ref([])
 const tags = ref([])
@@ -117,6 +125,7 @@ const uploadHeaders = computed(() => ({
 const form = ref({
   title: '',
   category_id: '',
+  activity_id: null,
   price: null,
   quantity: 1,
   description: ''
@@ -141,6 +150,13 @@ const fetchCategories = async () => {
   }
 }
 
+const fetchActivities = async () => {
+  try {
+    const res = await api.get('/activities')
+    if (res.data.code === 0) activities.value = res.data.data
+  } catch (e) { /* ignore */ }
+}
+
 // 加载商品用于编辑
 const loadItemForEdit = async () => {
   if (!editItemId.value) return
@@ -153,6 +169,7 @@ const loadItemForEdit = async () => {
       form.value = {
         title: item.title || '',
         category_id: item.category_id || '',
+        activity_id: item.activity_id || null,
         price: item.price || null,
         quantity: item.quantity || 1,
         description: item.description || ''
@@ -217,6 +234,7 @@ const handlePublish = async () => {
   try {
     const payload = {
       ...form.value,
+      activity_id: form.value.activity_id || null,
       images: uploadedImages.value,
       tags: tags.value
     }
@@ -243,6 +261,7 @@ const handlePublish = async () => {
 
 onMounted(() => {
   fetchCategories()
+  fetchActivities()
   if (isEdit.value) {
     loadItemForEdit()
   }

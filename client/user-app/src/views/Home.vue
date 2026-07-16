@@ -47,6 +47,31 @@
       </div>
     </div>
 
+    <!-- 校园活动专区（无搜索、无分类筛选时显示） -->
+    <div v-if="!route.query.keyword && !filters.category_id && activities.length > 0" class="activity-section">
+      <div class="section-title">校园活动专区</div>
+      <div class="activity-grid">
+        <div
+          v-for="act in activities"
+          :key="act.id"
+          class="activity-card"
+          @click="router.push(`/activity/${act.id}`)"
+        >
+          <div class="activity-card-banner">
+            <img v-if="act.banner_url" v-lazy="act.banner_url.startsWith('http') ? act.banner_url : `http://localhost:3000${act.banner_url}`" class="activity-banner-img" />
+            <div v-else class="activity-banner-placeholder">
+              <el-icon :size="28"><Calendar /></el-icon>
+            </div>
+          </div>
+          <div class="activity-card-info">
+            <div class="activity-card-name">{{ act.name }}</div>
+            <div class="activity-card-desc" v-if="act.description">{{ act.description }}</div>
+            <div class="activity-card-count">{{ act.item_count || 0 }} 件商品</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 搜索提示 -->
     <div v-if="route.query.keyword" class="search-tip">
       搜索 "<strong>{{ route.query.keyword }}</strong>" 的结果，共 {{ total }} 件商品
@@ -105,7 +130,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Picture } from '@element-plus/icons-vue'
+import { Picture, Calendar } from '@element-plus/icons-vue'
 import api from '@/api'
 import { throttle, debounce } from '@/utils/performance'
 import { useItemStore } from '@/stores/item'
@@ -116,6 +141,7 @@ const itemStore = useItemStore()
 
 const items = ref([])
 const trending = ref([])
+const activities = ref([])
 const categories = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -175,10 +201,18 @@ const fetchTrending = async () => {
   } catch (e) { /* ignore */ }
 }
 
+const fetchActivities = async () => {
+  try {
+    const res = await api.get('/activities')
+    if (res.data.code === 0) activities.value = res.data.data
+  } catch (e) { /* ignore */ }
+}
+
 onMounted(() => {
   fetchCategories()
   fetchItems()
   fetchTrending()
+  fetchActivities()
 })
 </script>
 
@@ -333,4 +367,64 @@ onMounted(() => {
 .trending-bottom { display: flex; align-items: center; justify-content: space-between; }
 .trending-price { font-size: 14px; color: #f56c6c; font-weight: bold; }
 .trending-views { font-size: 12px; color: #c0c4cc; display: flex; align-items: center; gap: 2px; }
+
+.activity-section { margin-bottom: 24px; }
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.activity-card {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  transition: box-shadow 0.2s;
+}
+.activity-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.activity-card-banner {
+  width: 140px;
+  height: 100px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+.activity-banner-img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.activity-banner-placeholder {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.5);
+}
+.activity-card-info {
+  flex: 1;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.activity-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+.activity-card-desc {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-card-count {
+  font-size: 13px;
+  color: #f56c6c;
+  font-weight: 500;
+}
 </style>

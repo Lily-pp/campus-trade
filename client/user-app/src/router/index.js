@@ -63,6 +63,12 @@ const routes = [
         name: 'myReports',
         meta: { requiresAuth: true },
         component: () => import('@/views/MyReports.vue')
+      },
+      {
+        path: 'activity/:id',
+        name: 'activityDetail',
+        meta: { keepAlive: true },
+        component: () => import('@/views/ActivityDetail.vue')
       }
     ]
   }
@@ -74,7 +80,7 @@ const router = createRouter({
 })
 
 // 路由预加载 - 在浏览器空闲时预加载高频页面
-const preloadRoutes = ['home', 'itemDetail', 'cart']
+const preloadRoutes = ['home', 'itemDetail', 'cart', 'activityDetail']
 const preloadIfIdleSupported = () => {
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
