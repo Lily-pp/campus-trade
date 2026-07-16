@@ -20,6 +20,7 @@ const uploadRoutes    = require('./routes/upload');
 const messageRoutes   = require('./routes/messages');
 const reviewRoutes         = require('./routes/reviews');
 const recommendationRoutes = require('./routes/recommendations');
+const activityRoutes    = require('./routes/activities');
 const { ensureSchema } = require('./scripts/ensure-schema');
 
 const path = require('path');
@@ -69,6 +70,7 @@ app.use('/api/upload',     uploadRoutes);
 app.use('/api/messages',   messageRoutes);
 app.use('/api/reviews',         reviewRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/activities',    activityRoutes);
 
 app.get('/', (req, res) => {
     res.json({ message: 'CampusTrade API 运行中' });

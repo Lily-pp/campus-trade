@@ -31,6 +31,10 @@
           <el-icon><Clock /></el-icon>
           <span>操作日志</span>
         </el-menu-item>
+        <el-menu-item index="/activities">
+          <el-icon><Calendar /></el-icon>
+          <span>活动管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
@@ -58,7 +62,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { DataLine, Goods, Files, User, Document, Warning, Clock } from '@element-plus/icons-vue'
+import { DataLine, Goods, Files, User, Document, Warning, Clock, Calendar } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const user = ref(null)
