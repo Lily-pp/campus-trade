@@ -89,6 +89,7 @@ router.get('/', async (req, res) => {
         const dataResult = await db.query(
                 `SELECT i.id, i.title, i.price,
                     i.user_id AS seller_user_id,
+                    i.expected_address, i.expected_longitude, i.expected_latitude,
                     CASE WHEN a.subsidy_enabled = TRUE
                          THEN ROUND((i.price * (1 - a.subsidy_discount_rate))::numeric, 2)
                          ELSE i.price
@@ -159,6 +160,7 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
         const listResult = await db.query(
                 `SELECT i.id, i.title, i.price,
                     i.user_id AS seller_user_id, i.status,
+                    i.expected_address, i.expected_longitude, i.expected_latitude,
                     i.is_approved, i.activity_id,
                     CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
                     i.views_count, i.favorites_count,
@@ -189,6 +191,7 @@ router.get('/my', authenticate, async (req, res) => {
         const result = await db.query(
                 `SELECT i.id, i.title, i.price,
                     i.user_id AS seller_user_id, i.status,
+                    i.expected_address, i.expected_longitude, i.expected_latitude,
                     i.is_approved,
                     CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
                     i.views_count, i.favorites_count, i.created_at,
@@ -264,8 +267,17 @@ router.get('/:id', async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
     try {
         console.log('【发布商品】收到的 tags:', req.body.tags);
-        const { title, description, price, category_id, campus, images, quantity, tags, activity_id, school, major, exam_year, is_landed, item_type, free_deadline } = req.body;
+        const {
+            title, description, price, category_id, campus, images, quantity, tags, activity_id,
+            school, major, exam_year, is_landed, item_type, free_deadline,
+            expected_address, expected_longitude, expected_latitude
+        } = req.body;
 
+        console.log('【发布商品】收到的期望地址信息：', {
+  expected_address,
+  expected_longitude,
+  expected_latitude
+});
         if (!title || price === undefined || !category_id) {
             return res.status(400).json({ code: 1, message: '标题、价格、分类不能为空', data: null });
         }
@@ -284,10 +296,36 @@ router.post('/', authenticate, async (req, res) => {
         const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
 
         const result = await db.query(
-            `INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity, activity_id, school, major, exam_year, is_landed, item_type, free_deadline)
-             VALUES ($1, $2, $3, $4, $5, 'pending', FALSE, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `INSERT INTO items (
+                title, description, price, category_id, user_id, status, is_approved,
+                campus, quantity, activity_id, school, major, exam_year, is_landed,
+                item_type, free_deadline, expected_address, expected_longitude, expected_latitude
+             )
+             VALUES (
+                $1, $2, $3, $4, $5, 'pending', FALSE,
+                $6, $7, $8, $9, $10, $11, $12,
+                $13, $14, $15, $16, $17
+             )
              RETURNING id`,
-            [title, description || null, item_type === 'charity' ? 0 : parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty, activity_id ? parseInt(activity_id) : null, school || null, major || null, exam_year ? parseInt(exam_year) : null, is_landed === true ? true : null, item_type || 'sale', free_deadline || null]
+            [
+                title,
+                description || null,
+                item_type === 'charity' ? 0 : parseFloat(price),
+                parseInt(category_id),
+                req.user.id,
+                campus || null,
+                qty,
+                activity_id ? parseInt(activity_id) : null,
+                school || null,
+                major || null,
+                exam_year ? parseInt(exam_year) : null,
+                is_landed === true ? true : null,
+                item_type || 'sale',
+                free_deadline || null,
+                expected_address || null,
+                expected_longitude ?? null,
+                expected_latitude ?? null
+            ]
         );
 
         const itemId = result.rows[0].id;
@@ -499,7 +537,8 @@ router.put('/:id', authenticate, async (req, res) => {
         // 2. 提取可修改字段
         const {
             title, description, price, category_id, campus,
-            quantity, images, tags, activity_id, school, major, exam_year, is_landed
+            quantity, images, tags, activity_id, school, major, exam_year, is_landed,
+            expected_address, expected_longitude, expected_latitude
         } = req.body;
 
         // 如果指定了 activity_id，验证活动存在且有效
@@ -527,10 +566,13 @@ router.put('/:id', authenticate, async (req, res) => {
                 major = COALESCE($9, major),
                 exam_year = COALESCE($10, exam_year),
                 is_landed = COALESCE($11, is_landed),
+                expected_address = $12,
+                expected_longitude = $13,
+                expected_latitude = $14,
                 status = 'pending',
                 is_approved = FALSE,
                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $12`,
+             WHERE id = $15`,
             [
                 title,
                 description || null,
@@ -543,6 +585,9 @@ router.put('/:id', authenticate, async (req, res) => {
                 major || null,
                 exam_year ? parseInt(exam_year) : null,
                 is_landed === true ? true : (is_landed === false ? false : null),
+                expected_address || null,
+                expected_longitude ?? null,
+                expected_latitude ?? null,
                 itemId
             ]
         );

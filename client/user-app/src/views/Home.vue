@@ -61,7 +61,18 @@
           <el-icon :size="20" style="color:#fff"><ArrowRight /></el-icon>
         </div>
       </div>
-      <div v-if="activities.length > 0" class="activity-grid">
+      <div class="activity-grid">
+        <!-- 失物招领搜索入口 -->
+        <div class="activity-card lost-found-card" @click="router.push('/lost-found')">
+          <div class="activity-card-banner lost-found-banner">
+            <el-icon :size="32" color="#fff"><Search /></el-icon>
+          </div>
+          <div class="activity-card-info">
+            <div class="activity-card-name">失物招领</div>
+            <div class="activity-card-desc">寻找丢失物品 / 发布拾到物品</div>
+            <div class="activity-card-count">点击进入搜索</div>
+          </div>
+        </div>
         <div
           v-for="act in activities"
           :key="act.id"
@@ -168,7 +179,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Picture, Calendar, ArrowRight } from '@element-plus/icons-vue'
+import { Picture, Calendar, Search, ArrowRight } from '@element-plus/icons-vue'
 import api from '@/api'
 import { throttle, debounce } from '@/utils/performance'
 import { useItemStore } from '@/stores/item'
@@ -429,6 +440,12 @@ onMounted(() => {
   background: linear-gradient(135deg, #667eea, #764ba2);
   display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.5);
+}
+.lost-found-banner {
+  background: linear-gradient(135deg, #36d1dc, #5b86e5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .activity-card-info {
   flex: 1; padding: 14px 18px;

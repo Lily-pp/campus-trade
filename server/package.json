@@ -7,7 +7,10 @@
   "start": "node app.js",
   "dev": "nodemon app.js",
   "test": "echo \"Error: no test specified\" && exit 1",
-  "db:init": "node scripts/init-db.js"
+  "db:init": "node scripts/init-db.js",
+  "db:migrate": "node scripts/migrate-db.js",
+  "db:baseline": "node scripts/baseline-migrations.js",
+  "db:baseline:dry": "node scripts/baseline-migrations.js --dry-run"
   },
   "keywords": [],
   "author": "",

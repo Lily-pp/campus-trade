@@ -9,6 +9,8 @@ const {
   loadMigrations,
   readMigrationRecords,
   releaseMigrationLock,
+  validateMigrationRecordSequence,
+  validateRecordedMigration,
 } = require('./migration-utils');
 
 function createClient() {
@@ -31,24 +33,38 @@ async function main() {
   try {
     await acquireMigrationLock(client);
     lockAcquired = true;
-
-    const applicationTables = await listApplicationTables(client);
-    if (applicationTables.length > 0) {
-      throw new Error(
-        `db:init 只能用于空数据库；当前数据库已存在业务表：${applicationTables.join(', ')}`
-      );
-    }
-
     await client.query(CREATE_SCHEMA_MIGRATIONS_SQL);
+
     const records = await readMigrationRecords(client);
-    if (records.size > 0) {
-      throw new Error('db:init 只能用于空数据库；schema_migrations 已存在迁移记录');
+    if (records.size === 0) {
+      const applicationTables = await listApplicationTables(client);
+      if (applicationTables.length > 0) {
+        throw new Error(
+          '检测到已有业务表，但 schema_migrations 没有记录。' +
+          '禁止从 V001 自动执行；请先运行 npm run db:baseline:dry 和 npm run db:baseline'
+        );
+      }
     }
 
-    console.log(`Initializing database: ${process.env.DB_NAME}`);
+    const localVersions = new Set(migrations.map((migration) => migration.version));
+    for (const version of records.keys()) {
+      if (!localVersions.has(version)) {
+        throw new Error(
+          `schema_migrations 中存在本地缺失的版本 ${version}，禁止自动继续`
+        );
+      }
+    }
+    validateMigrationRecordSequence(migrations, records);
 
     for (const migration of migrations) {
-      console.log(`Executing migration: ${migration.filename}`);
+      const record = records.get(migration.version);
+      if (record) {
+        validateRecordedMigration(migration, record);
+        console.log(`[SKIPPED] ${migration.filename}`);
+        continue;
+      }
+
+      console.log(`[EXECUTING] ${migration.filename}`);
       try {
         await client.query('BEGIN');
         await client.query(migration.executableSql);
@@ -58,22 +74,22 @@ async function main() {
           [migration.version, migration.filename, migration.checksum]
         );
         await client.query('COMMIT');
-        console.log(`Completed migration: ${migration.filename}`);
+        console.log(`[COMPLETED] ${migration.filename}`);
       } catch (error) {
         try {
           await client.query('ROLLBACK');
         } catch (rollbackError) {
           console.error(
-            `Rollback failed for ${migration.filename}: ${rollbackError.message}`
+            `[ROLLBACK FAILED] ${migration.filename}: ${rollbackError.message}`
           );
         }
-        console.error(`Migration failed: ${migration.filename}`);
+        console.error(`[FAILED] ${migration.filename}`);
         console.error(error);
         throw error;
       }
     }
 
-    console.log('Database initialization completed.');
+    console.log('Database migrations completed.');
   } finally {
     if (lockAcquired) {
       try {
@@ -87,6 +103,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(`Database initialization failed: ${error.message}`);
+  console.error(`Database migration failed: ${error.message}`);
   process.exitCode = 1;
 });

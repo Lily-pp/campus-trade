@@ -41,6 +41,15 @@
                 <span style="color:#909399;font-size:12px;margin-left:4px">({{ item.review_count }}条)</span>
               </el-descriptions-item>
               <el-descriptions-item label="发布时间">{{ formatTime(item.created_at) }}</el-descriptions-item>
+
+              <el-descriptions-item v-if="item.expected_address" label="期望交易地址">
+                <span 
+                  style="color: #409eff; cursor: pointer; text-decoration: underline;"
+                 @click="openMapDialog"
+               >
+                 {{ item.expected_address }}
+                  </span>
+              </el-descriptions-item>
             </el-descriptions>
 
             <div class="desc-section" v-if="item.description">
@@ -198,11 +207,27 @@
     </el-card>
 
     <el-empty v-if="!item && !loading" description="商品不存在" />
+    <!-- 地图路径弹窗 -->
+    <el-dialog
+      v-model="mapDialogVisible"
+      title="交易位置与路径"
+      width="800px"
+      destroy-on-close
+     @closed="() => { if (map) { map.destroy(); map = null } }"
+    >
+      <div ref="mapContainer" style="width: 100%; height: 480px; border-radius: 8px;"></div>
+      <div style="margin-top: 12px; font-size: 13px; color: #606266;">
+        <div v-if="item?.expected_address">
+          <strong>期望交易地址：</strong>{{ item.expected_address }}
+        </div>
+        <div style="margin-top: 4px; color: #909399;">蓝色标记为当前位置，红色标记为期望交易位置</div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Star, StarFilled, Picture, Location } from '@element-plus/icons-vue'
@@ -469,6 +494,101 @@ const fetchSimilar = async () => {
   } catch (e) { /* ignore */ }
 }
 
+
+// ==================== 地图路径相关 ====================
+const mapDialogVisible = ref(false)
+const mapContainer = ref(null)
+let map = null
+
+const openMapDialog = () => {
+  if (!item.value?.expected_longitude || !item.value?.expected_latitude) {
+    ElMessage.warning('该商品暂无位置信息')
+    return
+  }
+  mapDialogVisible.value = true
+  nextTick(() => {
+    initRouteMap()
+  })
+}
+
+const initRouteMap = () => {
+  if (!window.AMap) {
+    ElMessage.error('地图加载失败')
+    return
+  }
+
+  if (map) {
+    map.destroy()
+    map = null
+  }
+
+  const targetLng = parseFloat(item.value.expected_longitude)
+  const targetLat = parseFloat(item.value.expected_latitude)
+
+  map = new AMap.Map(mapContainer.value, {
+    zoom: 14,
+    viewMode: '2D'
+  })
+
+  // 期望位置标记（红色）
+  const targetMarker = new AMap.Marker({
+    position: [targetLng, targetLat],
+    map,
+    title: '期望交易位置',
+    icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png'
+  })
+
+  // 获取当前位置
+  const geolocation = new AMap.Geolocation({
+    enableHighAccuracy: true,
+    timeout: 10000
+  })
+
+  geolocation.getCurrentPosition((status, result) => {
+    if (status === 'complete') {
+      const currentLng = result.position.getLng()
+      const currentLat = result.position.getLat()
+
+      // 当前位置标记（蓝色）
+      new AMap.Marker({
+        position: [currentLng, currentLat],
+        map,
+        title: '当前位置',
+        icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
+      })
+
+      // 路径规划（步行）
+      AMap.plugin(['AMap.Walking'], () => {
+        const walking = new AMap.Walking({
+          map: map,
+          hideMarkers: true
+        })
+
+        walking.search(
+          [currentLng, currentLat],
+          [targetLng, targetLat],
+          (status, result) => {
+            if (status === 'complete') {
+              console.log('路径规划成功', result)
+              // 自动调整视野显示整条路径
+              map.setFitView()
+            } else {
+              console.warn('路径规划失败', result)
+              // 规划失败时至少显示两个点
+              map.setFitView([targetMarker])
+              ElMessage.warning('暂时无法规划路径，已显示两个位置')
+            }
+          }
+        )
+      })
+    } else {
+      // 定位失败，只显示目标点
+      map.setCenter([targetLng, targetLat])
+      map.setZoom(15)
+      ElMessage.warning('无法获取当前位置，仅显示期望交易位置')
+    }
+  })
+}
 onMounted(() => {
   fetchItem()
   checkFavorite()

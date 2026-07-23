@@ -6,7 +6,6 @@
           <el-icon :size="22"><Shop /></el-icon>
           <span>CampusTrade</span>
         </router-link>
-
         <div class="search-bar">
           <el-input
             v-model="keyword"
@@ -21,11 +20,12 @@
             </template>
           </el-input>
         </div>
-
         <nav class="nav">
           <router-link to="/" class="nav-link">
             <el-icon><HomeFilled /></el-icon> 首页
           </router-link>
+
+
           <template v-if="userStore.isLoggedIn">
             <router-link to="/publish" class="nav-link">
               <el-icon><Plus /></el-icon> 发布
@@ -62,14 +62,12 @@
         </nav>
       </div>
     </header>
-
     <main class="main-content">
       <keep-alive>
         <router-view v-if="$route.meta.keepAlive" />
       </keep-alive>
       <router-view v-if="!$route.meta.keepAlive" />
     </main>
-
     <footer class="footer">
       <p>CampusTrade 校园二手交易平台 &copy; 2026</p>
     </footer>
@@ -121,7 +119,6 @@ const handleCommand = (cmd) => {
   flex-direction: column;
   background: #f5f7fa;
 }
-
 .header {
   background: #fff;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
@@ -129,7 +126,6 @@ const handleCommand = (cmd) => {
   top: 0;
   z-index: 100;
 }
-
 .header-inner {
   max-width: 1200px;
   margin: 0 auto;
@@ -139,7 +135,6 @@ const handleCommand = (cmd) => {
   align-items: center;
   gap: 24px;
 }
-
 .logo {
   display: flex;
   align-items: center;
@@ -150,12 +145,10 @@ const handleCommand = (cmd) => {
   text-decoration: none;
   white-space: nowrap;
 }
-
 .search-bar {
   flex: 1;
   max-width: 420px;
 }
-
 .nav {
   display: flex;
   align-items: center;
@@ -163,7 +156,6 @@ const handleCommand = (cmd) => {
   white-space: nowrap;
   margin-left: auto;
 }
-
 .nav-link {
   display: flex;
   align-items: center;
@@ -175,32 +167,26 @@ const handleCommand = (cmd) => {
   border-radius: 6px;
   transition: all 0.2s;
 }
-
 .nav-link:hover {
   color: #409eff;
   background: #ecf5ff;
 }
-
 .nav-link.router-link-exact-active {
   color: #409eff;
   font-weight: 500;
 }
-
 .login-btn {
   color: #409eff;
   border: 1px solid #409eff;
 }
-
 .register-btn {
   color: #fff;
   background: #409eff;
 }
-
 .register-btn:hover {
   color: #fff;
   background: #66b1ff;
 }
-
 .nav-user {
   display: flex;
   align-items: center;
@@ -209,7 +195,6 @@ const handleCommand = (cmd) => {
   font-size: 14px;
   color: #333;
 }
-
 .main-content {
   flex: 1;
   max-width: 1200px;
@@ -217,7 +202,6 @@ const handleCommand = (cmd) => {
   margin: 20px auto;
   padding: 0 20px;
 }
-
 .footer {
   text-align: center;
   padding: 20px;
