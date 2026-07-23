@@ -10,8 +10,35 @@
         </div>
       </template>
 
-      <el-table :data="list" v-loading="loading" stripe>
-        <el-table-column label="活动名称" min-width="180">
+      <el-table :data="list" v-loading="loading" stripe row-key="id">
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="expand-items" v-loading="row._loadingItems">
+              <div class="expand-header">
+                <span>「{{ row.name }}」商品列表</span>
+                <el-button size="small" type="primary" @click.stop="fetchActivityItems(row)">刷新</el-button>
+              </div>
+              <el-table :data="row._items || []" size="small" v-if="row._items && row._items.length > 0">
+                <el-table-column prop="id" label="ID" width="60" />
+                <el-table-column prop="title" label="标题" min-width="180" />
+                <el-table-column prop="price" label="价格" width="90">
+                  <template #default="{ row: r }">¥{{ r.price }}</template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="90">
+                  <template #default="{ row: r }">
+                    <el-tag :type="r.status === 'on_sale' ? 'success' : r.status === 'pending' ? 'warning' : 'info'" size="small">
+                      {{ r.status === 'on_sale' ? '在售' : r.status === 'pending' ? '待审' : r.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="seller_name" label="卖家" width="100" />
+                <el-table-column prop="views_count" label="浏览" width="70" />
+              </el-table>
+              <el-empty v-else-if="row._items" description="该活动暂无商品" :image-size="40" />
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="活动名称" min-width="200">
           <template #default="{ row }">
             <div class="activity-name-cell">
               <img
@@ -23,26 +50,30 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型标识" width="130" />
-        <el-table-column label="活动时间" width="220">
+        <el-table-column label="类型/标识" width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span style="font-size:13px;color:#606266">{{ row.type }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="活动时间" width="240">
           <template #default="{ row }">
             <div class="time-cell">
-              <div>{{ formatTime(row.start_time) }}</div>
-              <div>~ {{ formatTime(row.end_time) }}</div>
+              <div>{{ formatShort(row.start_time) }}</div>
+              <div>至 {{ formatShort(row.end_time) }}</div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="110">
+        <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="!row.is_enabled" type="danger" size="small">已停用</el-tag>
             <el-tag v-else-if="row.time_status === 'active'" type="success" size="small">进行中</el-tag>
             <el-tag v-else-if="row.time_status === 'upcoming'" type="warning" size="small">未开始</el-tag>
-            <el-tag v-else-if="row.time_status === 'ended'" type="info" size="small">已结束</el-tag>
+            <el-tag v-else type="info" size="small">已结束</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="sort_order" label="排序" width="70" />
-        <el-table-column prop="item_count" label="商品数" width="80" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column prop="sort_order" label="排序" width="70" align="center" />
+        <el-table-column prop="item_count" label="商品数" width="85" align="center" />
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
             <el-button
@@ -157,6 +188,24 @@ const formatTime = (t) => {
   const d = new Date(t)
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
+const formatShort = (t) => {
+  if (!t) return ''
+  const d = new Date(t)
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+const fetchActivityItems = async (row) => {
+  row._loadingItems = true
+  try {
+    const res = await api.get(`/activities/${row.id}/items`, { params: { pageSize: 50 } })
+    if (res.data?.code === 0) {
+      row._items = res.data.data.list
+    }
+  } catch (e) {
+    row._items = []
+  }
+  row._loadingItems = false
+}
 
 const fetchList = async () => {
   loading.value = true
@@ -165,9 +214,12 @@ const fetchList = async () => {
     if (res.data?.code === 0) {
       list.value = res.data.data.list
       total.value = res.data.data.total
+    } else {
+      ElMessage.error(res.data?.message || '获取活动列表失败')
     }
   } catch (e) {
-    ElMessage.error('获取活动列表失败')
+    const msg = e.response?.data?.message || e.response?.data?.error || e.message || '获取活动列表失败'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }
@@ -275,9 +327,12 @@ onMounted(fetchList)
   flex-shrink: 0;
 }
 .time-cell {
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: nowrap;
 }
+.expand-items { padding: 12px 20px; background: #fafafa; }
+.expand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 600; color: #303133; }
 .form-tip {
   font-size: 12px;
   color: #909399;

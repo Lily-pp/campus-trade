@@ -611,28 +611,3 @@ BEGIN
         CHECK (status IN ('pending', 'paid', 'completed', 'cancelled', 'refunded'));
     END IF;
 END $$;
-
--- 给 items 表增加期望收货地址相关字段（兼容 OpenGauss）
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'items' AND column_name = 'expected_address'
-    ) THEN
-        ALTER TABLE items ADD COLUMN expected_address VARCHAR(200);
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'items' AND column_name = 'expected_longitude'
-    ) THEN
-        ALTER TABLE items ADD COLUMN expected_longitude DECIMAL(10, 7);
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'items' AND column_name = 'expected_latitude'
-    ) THEN
-        ALTER TABLE items ADD COLUMN expected_latitude DECIMAL(10, 7);
-    END IF;
-END $$;

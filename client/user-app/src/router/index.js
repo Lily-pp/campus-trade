@@ -75,6 +75,38 @@ const routes = [
         name: 'activityDetail',
         meta: { keepAlive: true },
         component: () => import('@/views/ActivityDetail.vue')
+      },
+      {
+        path: 'storage-services',
+        name: 'storageServices',
+        component: () => import('@/views/StorageService.vue')
+      },
+      {
+        path: 'storage-requests',
+        name: 'storageRequests',
+        component: () => import('@/views/StorageRequest.vue')
+      },
+      {
+        path: 'publish-storage',
+        name: 'publishStorage',
+        meta: { requiresAuth: true },
+        component: () => import('@/views/PublishStorage.vue')
+      },
+      {
+        path: 'rental-items',
+        name: 'rentalItems',
+        component: () => import('@/views/RentalItems.vue')
+      },
+      {
+        path: 'charity',
+        name: 'graduationCharity',
+        component: () => import('@/views/GraduationCharity.vue')
+      },
+      {
+        path: 'publish-rental',
+        name: 'publishRental',
+        meta: { requiresAuth: true },
+        component: () => import('@/views/PublishRental.vue')
       }
     ]
   }

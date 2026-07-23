@@ -21,17 +21,17 @@
         <span>举报管理 <el-tag type="info" size="small">共 {{ total }} 条</el-tag></span>
       </template>
 
-      <el-table :data="reports" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="reporter_name" label="举报人" width="120" />
-        <el-table-column prop="target_type" label="举报对象" width="100">
+      <el-table :data="reports" v-loading="loading" stripe style="width:100%">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="reporter_name" label="举报人" width="100" show-overflow-tooltip />
+        <el-table-column label="举报对象" width="130">
           <template #default="{ row }">
             <el-tag size="small" :type="row.target_type === 'item' ? 'primary' : 'warning'">
               {{ row.target_type === 'item' ? '商品' : '用户' }} #{{ row.target_id }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="举报原因" min-width="180">
+        <el-table-column label="举报原因" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="showReasonDetail(row)">
               {{ row.reason.length > 20 ? row.reason.substring(0, 20) + '...' : row.reason }}

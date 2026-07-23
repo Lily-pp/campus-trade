@@ -42,31 +42,49 @@
         </span>
       </template>
 
-      <el-table :data="items" v-loading="loading" stripe border style="width:100%">
-        <el-table-column prop="id" label="ID" width="65" />
-        <el-table-column prop="title" label="商品名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="price" label="价格" width="100">
-          <template #default="{ row }">¥{{ row.price }}</template>
-        </el-table-column>
-        <el-table-column prop="category_name" label="分类" width="110" />
-        <el-table-column prop="seller_name" label="发布人" width="100" />
-        <el-table-column prop="seller_campus" label="校区" width="100" />
-        <el-table-column label="浏览/收藏" width="90" align="center">
+      <el-table :data="items" v-loading="loading" stripe style="width:100%">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="title" label="商品名称" min-width="180" show-overflow-tooltip />
+        <el-table-column label="价格" width="90" align="center">
           <template #default="{ row }">
-            {{ row.views_count }}/{{ row.favorites_count }}
+            <span style="color:#f56c6c;font-weight:600">¥{{ row.price }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column label="分类" width="85" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" type="info">{{ row.category_name }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="活动专区" width="130" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag v-if="row.activity_name" size="small" type="warning">{{ row.activity_name }}</el-tag>
+            <span v-else style="color:#c0c4cc;font-size:12px">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="发布人" width="80" show-overflow-tooltip />
+        <el-table-column label="校区" width="85" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span style="font-size:12px">{{ row.seller_campus }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="浏览/收藏" width="85" align="center">
+          <template #default="{ row }">
+            <span style="font-size:12px">{{ row.views_count }}/{{ row.favorites_count }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="85" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusMeta(row).type" size="small">
               {{ getStatusMeta(row).label }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="发布时间" width="155">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+        <el-table-column label="发布时间" width="150">
+          <template #default="{ row }">
+            <span style="font-size:12px">{{ formatTime(row.created_at) }}</span>
+          </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right" align="center">
+        <el-table-column label="操作" width="90" fixed="right" align="center">
           <template #default="{ row }">
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(row, cmd)">
               <el-button type="primary" size="small">

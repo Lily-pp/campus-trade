@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard">
-    <!-- 统计卡片：第一行 -->
+    <!-- 统计卡片：第一行（基础数据） -->
     <el-row :gutter="16" class="stat-row">
       <el-col :span="6" v-for="card in statCards" :key="card.key">
         <el-card class="stat-card" shadow="hover">
@@ -17,7 +17,24 @@
       </el-col>
     </el-row>
 
-    <!-- 第二行：热门商品 + 分类占比 -->
+    <!-- 统计卡片：第二行（运营数据） -->
+    <el-row :gutter="16" class="stat-row">
+      <el-col :span="6" v-for="card in extStatCards" :key="card.key">
+        <el-card class="stat-card" shadow="hover">
+          <div class="stat-inner">
+            <div class="stat-icon" :style="{ background: card.color }">
+              <el-icon :size="28"><component :is="card.icon" /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ formatStat(card.key) }}</div>
+              <div class="stat-label">{{ card.label }}</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 第三行：热门商品 + 分类占比 -->
     <el-row :gutter="16" style="margin-bottom:16px">
       <!-- 热门商品 -->
       <el-col :span="14">
@@ -89,7 +106,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { User, Goods, Files, Sell, Document, Warning } from '@element-plus/icons-vue'
+import { User, Goods, Files, Sell, Document, Warning, Calendar, Present, House, ShoppingCart, Coin } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
 
@@ -106,6 +123,24 @@ const statCards = [
   { key: 'sold',            label: '已售出',     icon: 'Sell',     color: '#1ABC9C' },
   { key: 'categories',      label: '分类总数',   icon: 'Files',    color: '#95A5A6' },
 ]
+
+const extStatCards = [
+  { key: 'activities_active',  label: '进行中活动',     icon: 'Calendar',      color: '#8E44AD' },
+  { key: 'charity_available',  label: '公益可领商品',   icon: 'Present',        color: '#E74C3C' },
+  { key: 'storage_services',   label: '寄存服务',       icon: 'House',          color: '#3498DB' },
+  { key: 'rental_items',       label: '转租物品',       icon: 'ShoppingCart',   color: '#2ECC71' },
+  { key: 'vouchers_amount',    label: '可用代金券总额', icon: 'Coin',           color: '#F39C12' },
+  { key: 'storage_orders',     label: '寄存订单',       icon: 'Document',       color: '#1ABC9C' },
+  { key: 'rental_orders',      label: '租赁订单',       icon: 'Document',       color: '#16A085' },
+  { key: 'charity_total',      label: '公益商品总数',   icon: 'Present',        color: '#D35400' },
+]
+
+const formatStat = (key) => {
+  const v = stats.value[key]
+  if (v == null) return '--'
+  if (key === 'vouchers_amount') return '¥' + Number(v).toFixed(0)
+  return v
+}
 
 const statusMap = {
   on_sale: { label: '出售中', type: 'success' },

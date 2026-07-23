@@ -22,6 +22,10 @@ const reviewRoutes         = require('./routes/reviews');
 const recommendationRoutes = require('./routes/recommendations');
 const activityRoutes    = require('./routes/activities');
 const lostFoundRouter = require('./routes/lostFound');
+const voucherRoutes    = require('./routes/vouchers');
+const storageRoutes   = require('./routes/storage');
+const rentalRoutes    = require('./routes/rental');
+const charityRoutes   = require('./routes/charity');
 const { ensureSchema } = require('./scripts/ensure-schema');
 
 const path = require('path');
@@ -73,6 +77,11 @@ app.use('/api/reviews',         reviewRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/activities',    activityRoutes);
 app.use('/api/lost-found', lostFoundRouter);
+app.use('/api/vouchers',     voucherRoutes);
+app.use('/api', storageRoutes);
+app.use('/api/rental-items', rentalRoutes);
+app.use('/api/charity', charityRoutes);
+
 app.get('/', (req, res) => {
     res.json({ message: 'CampusTrade API 运行中' });
 });

@@ -11,6 +11,20 @@
       </template>
 
       <el-form :model="form" :rules="rules" ref="formRef" label-width="90px" style="max-width:600px">
+        <el-form-item label="商品类型">
+          <el-radio-group v-model="form.item_type" @change="onTypeChange">
+            <el-radio value="sale">🛒 普通出售</el-radio>
+            <el-radio value="charity">🎁 毕业公益赠送</el-radio>
+          </el-radio-group>
+          <div v-if="form.item_type === 'charity'" class="charity-tip">
+            <el-alert type="warning" :closable="false" show-icon>
+              <template #title>
+                选择公益赠送后商品价格自动设为 0（免费），发布成功可获 <strong>+5 公益积分</strong>
+              </template>
+            </el-alert>
+          </div>
+        </el-form-item>
+
         <el-form-item label="商品标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入商品标题" maxlength="100" show-word-limit />
         </el-form-item>
@@ -22,13 +36,28 @@
         </el-form-item>
 
         <el-form-item label="参加活动">
-          <el-select v-model="form.activity_id" placeholder="选择参加校园活动（可选）" style="width:100%" clearable>
+          <el-select v-model="form.activity_id" placeholder="选择参加校园活动（可选）" style="width:100%" clearable @change="onActivityChange">
             <el-option label="不参加活动" :value="null" />
             <el-option v-for="act in activities" :key="act.id" :label="act.name" :value="act.id" />
           </el-select>
+          <!-- 官方补贴提示 -->
+          <div v-if="selectedActivity?.subsidy_enabled" class="subsidy-notice">
+            <el-alert type="warning" :closable="false" show-icon>
+              <template #title>
+                <div>
+                  <p><strong>🎓 官方补贴活动</strong></p>
+                  <p>参加官方活动后，商品成交价将自动按您填写的售价<strong>降低 {{ ((selectedActivity.subsidy_discount_rate || 0.10) * 100).toFixed(0) }}%</strong>，以帮助商品更快成交。</p>
+                  <p>作为官方补贴奖励，成交后平台将随机赠送成交金额 <strong>{{ ((selectedActivity.voucher_min_rate || 0.05) * 100).toFixed(0) }}%~{{ ((selectedActivity.voucher_max_rate || 0.10) * 100).toFixed(0) }}%</strong> 的校园代金券！</p>
+                  <p v-if="form.price" style="margin-top:8px;color:#e6a23c">
+                    您填写售价 <strong>¥{{ form.price }}</strong>，买家将看到 <strong>¥{{ subsidyPrice }}</strong>
+                  </p>
+                </div>
+              </template>
+            </el-alert>
+          </div>
         </el-form-item>
 
-        <el-form-item label="价格" prop="price">
+        <el-form-item v-if="form.item_type !== 'charity'" label="价格" prop="price">
           <el-input-number v-model="form.price" :min="0.01" :precision="2" :step="10" style="width:200px" />
           <span style="margin-left:8px;color:#909399">元</span>
         </el-form-item>
@@ -42,20 +71,37 @@
           <el-input v-model="form.description" type="textarea" :rows="5" placeholder="详细描述你的商品..." />
         </el-form-item>
 
-        <!-- 期望收货地址 -->
+        <!-- 期望交易地址 -->
         <el-form-item label="期望交易地址">
-        <div style="display: flex; gap: 8px; width: 100%;">
-         <el-input
-           v-model="form.expected_address"
-           placeholder="请点击右侧按钮在地图上选择期望交易位置"
-           readonly
-          />
-         <el-button type="primary" @click="openMapPicker">地图选点</el-button>
-        </div>
-        <div v-if="form.expected_longitude" style="margin-top: 6px; font-size: 12px; color: #909399;">
-         坐标：{{ form.expected_longitude.toFixed(6) }}, {{ form.expected_latitude.toFixed(6) }}
-        </div>
-      </el-form-item>
+          <div style="display: flex; gap: 8px; width: 100%;">
+            <el-input
+              v-model="form.expected_address"
+              placeholder="请输入期望交易位置，或点击右侧按钮地图选点"
+              clearable
+              @input="clearExpectedCoordinates"
+            />
+            <el-button type="primary" @click="openMapPicker">地图选点</el-button>
+          </div>
+          <div v-if="form.expected_longitude != null && form.expected_latitude != null" style="margin-top: 6px; font-size: 12px; color: #909399;">
+            坐标：{{ Number(form.expected_longitude).toFixed(6) }}, {{ Number(form.expected_latitude).toFixed(6) }}
+          </div>
+        </el-form-item>
+
+        <!-- 考研资料专区字段（仅选择考研活动时显示） -->
+        <template v-if="selectedActivity?.type === 'exam_materials'">
+          <el-form-item label="学校">
+            <el-input v-model="form.school" placeholder="如：清华大学" maxlength="100" />
+          </el-form-item>
+          <el-form-item label="专业">
+            <el-input v-model="form.major" placeholder="如：计算机科学与技术" maxlength="100" />
+          </el-form-item>
+          <el-form-item label="考研年份">
+            <el-input-number v-model="form.exam_year" :min="2015" :max="2030" placeholder="如：2025" style="width:160px" />
+          </el-form-item>
+          <el-form-item label="是否上岸">
+            <el-switch v-model="form.is_landed" active-text="已上岸" inactive-text="-" />
+          </el-form-item>
+        </template>
         <!-- 自定义标签 -->
         <el-form-item label="自定义标签">
           <div class="tag-wrapper">
@@ -135,7 +181,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { EditPen, Plus } from '@element-plus/icons-vue'
 import api from '@/api'
 
@@ -160,13 +206,26 @@ const form = ref({
   title: '',
   category_id: '',
   activity_id: null,
+  item_type: 'sale',
   price: null,
   quantity: 1,
   description: '',
   expected_address: '',
   expected_longitude: null,
-  expected_latitude: null
+  expected_latitude: null,
+  school: '',
+  major: '',
+  exam_year: null,
+  is_landed: false
 })
+
+const onTypeChange = () => {
+  if (form.value.item_type === 'charity') {
+    form.value.price = 0
+    form.value.activity_id = null
+  }
+}
+
 const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
   category_id: [{ required: true, message: '请选择分类', trigger: 'change' }],
@@ -176,6 +235,27 @@ const rules = {
 
 const isEdit = computed(() => !!route.query.id)
 const editItemId = computed(() => route.query.id)
+
+const selectedActivity = computed(() => {
+  if (!form.value.activity_id) return null
+  return activities.value.find(a => a.id === form.value.activity_id) || null
+})
+
+const subsidyPrice = computed(() => {
+  if (!form.value.price || !selectedActivity.value?.subsidy_enabled) return null
+  const rate = selectedActivity.value.subsidy_discount_rate || 0.10
+  return (form.value.price * (1 - rate)).toFixed(2)
+})
+
+const onActivityChange = () => {
+  // 切换活动时清除考研字段（如果不是考研活动）
+  if (selectedActivity.value?.type !== 'exam_materials') {
+    form.value.school = ''
+    form.value.major = ''
+    form.value.exam_year = null
+    form.value.is_landed = false
+  }
+}
 
 const fetchCategories = async () => {
   try {
@@ -210,9 +290,14 @@ const loadItemForEdit = async () => {
         price: item.price || null,
         quantity: item.quantity || 1,
         description: item.description || '',
+        item_type: item.item_type || 'sale',
         expected_address: item.expected_address || '',
-        expected_longitude: item.expected_longitude || null,
-        expected_latitude: item.expected_latitude || null
+        expected_longitude: item.expected_longitude != null ? Number(item.expected_longitude) : null,
+        expected_latitude: item.expected_latitude != null ? Number(item.expected_latitude) : null,
+        school: item.school || '',
+        major: item.major || '',
+        exam_year: item.exam_year || null,
+        is_landed: item.is_landed || false
       }
 
       if (item.images && item.images.length > 0) {
@@ -270,13 +355,40 @@ const handlePublish = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
+  // 官方补贴活动确认
+  if (selectedActivity.value?.subsidy_enabled) {
+    const rate = ((selectedActivity.value.subsidy_discount_rate || 0.10) * 100).toFixed(0)
+    const displayPrice = subsidyPrice.value
+    try {
+      await ElMessageBox.confirm(
+        `参加「${selectedActivity.value.name}」官方补贴活动后：\n\n` +
+        `• 您的商品将以填写价格的 ${100 - parseInt(rate)}% 展示（¥${displayPrice}）\n` +
+        `• 成交后您将获得成交金额 ${((selectedActivity.value.voucher_min_rate || 0.05) * 100).toFixed(0)}%~${((selectedActivity.value.voucher_max_rate || 0.10) * 100).toFixed(0)}% 的校园代金券\n\n` +
+        `确认参加此活动吗？`,
+        '官方补贴活动确认',
+        {
+          confirmButtonText: '确认参加',
+          cancelButtonText: '我再想想',
+          type: 'warning',
+          dangerouslyUseHTMLString: false
+        }
+      )
+    } catch {
+      return // 用户取消
+    }
+  }
+
   loading.value = true
   try {
     const payload = {
       ...form.value,
       activity_id: form.value.activity_id || null,
       images: uploadedImages.value,
-      tags: tags.value
+      tags: tags.value,
+      school: form.value.school || null,
+      major: form.value.major || null,
+      exam_year: form.value.exam_year || null,
+      is_landed: form.value.is_landed || false
     }
 
     console.log('【前端提交】payload 中的地址信息：', {
@@ -320,6 +432,11 @@ const openMapPicker = () => {
   nextTick(() => {
     initMap()
   })
+}
+
+const clearExpectedCoordinates = () => {
+  form.value.expected_longitude = null
+  form.value.expected_latitude = null
 }
 
 const initMap = () => {
@@ -402,4 +519,6 @@ onMounted(() => {
 .publish-page { max-width: 800px; margin: 0 auto; }
 .upload-tip { font-size: 12px; color: #909399; margin-top: 4px; }
 .tag-wrapper { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.subsidy-notice { margin-top: 8px; }
+.subsidy-notice p { margin: 4px 0; font-size: 13px; line-height: 1.6; }
 </style>

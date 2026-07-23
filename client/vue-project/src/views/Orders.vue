@@ -27,26 +27,30 @@
         <span>订单管理 <el-tag type="info" size="small">共 {{ total }} 条</el-tag></span>
       </template>
 
-      <el-table :data="orders" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="订单ID" width="80" />
-        <el-table-column prop="item_title" label="商品" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="price" label="成交价" width="100">
-          <template #default="{ row }">¥{{ row.price }}</template>
+      <el-table :data="orders" v-loading="loading" stripe style="width:100%">
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="item_title" label="商品名称" min-width="160" show-overflow-tooltip />
+        <el-table-column label="成交价" width="90" align="center">
+          <template #default="{ row }">
+            <span style="color:#f56c6c;font-weight:600">¥{{ row.price }}</span>
+          </template>
         </el-table-column>
-        <el-table-column prop="buyer_name" label="买家" width="110" />
-        <el-table-column prop="buyer_campus" label="校区" width="100" />
-        <el-table-column prop="seller_name" label="卖家" width="110" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column label="买家" width="100" show-overflow-tooltip />
+        <el-table-column label="买家校区" width="90">
+          <template #default="{ row }"><span style="font-size:12px">{{ row.buyer_campus }}</span></template>
+        </el-table-column>
+        <el-table-column label="卖家" width="100" show-overflow-tooltip />
+        <el-table-column label="状态" width="85" align="center">
           <template #default="{ row }">
             <el-tag :type="orderStatusMap[row.status]?.type || 'info'" size="small">
               {{ orderStatusMap[row.status]?.label || row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="下单时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+        <el-table-column label="下单时间" width="150">
+          <template #default="{ row }"><span style="font-size:12px">{{ formatTime(row.created_at) }}</span></template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right" align="center">
+        <el-table-column label="操作" width="90" fixed="right" align="center">
           <template #default="{ row }">
             <el-dropdown v-if="row.status === 'pending'" trigger="click" @command="(cmd) => changeStatus(row.id, cmd)">
               <el-button type="primary" size="small">
