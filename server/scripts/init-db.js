@@ -4,8 +4,11 @@ const { Client } = require('pg');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
 async function main() {
-  const sqlPath = path.resolve(__dirname, '..', 'init.sql');
-  const sql = fs.readFileSync(sqlPath, 'utf8');
+  const migrationsDir = path.resolve(__dirname, '..', '..', 'database', 'migrations');
+  const migrationFiles = fs.readdirSync(migrationsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === '.sql')
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b, 'en'));
 
   const client = new Client({
     host: process.env.DB_HOST,
@@ -19,7 +22,22 @@ async function main() {
 
   try {
     console.log(`Initializing database: ${process.env.DB_NAME}`);
-    await client.query(sql);
+
+    for (const migrationFile of migrationFiles) {
+      const migrationPath = path.join(migrationsDir, migrationFile);
+
+      console.log(`Executing migration: ${migrationFile}`);
+
+      try {
+        const sql = fs.readFileSync(migrationPath, 'utf8');
+        await client.query(sql);
+        console.log(`Completed migration: ${migrationFile}`);
+      } catch (error) {
+        console.error(`Migration failed: ${migrationFile}`);
+        console.error(error);
+        throw error;
+      }
+    }
 
     const tablesResult = await client.query(
       "SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename"
