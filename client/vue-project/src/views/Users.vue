@@ -24,19 +24,21 @@
         </div>
       </template>
 
-      <el-table :data="users" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="username" label="用户名" width="140" />
-        <el-table-column prop="real_name" label="姓名" width="120" />
-        <el-table-column prop="role" label="角色" width="110">
+      <el-table :data="users" v-loading="loading" stripe style="width:100%">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="real_name" label="姓名" width="100" show-overflow-tooltip />
+        <el-table-column label="角色" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="roleMap[row.role]?.type || 'info'" size="small">
               {{ roleMap[row.role]?.label || row.role }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="campus" label="校区" width="120" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column label="校区" width="90" show-overflow-tooltip>
+          <template #default="{ row }"><span style="font-size:13px">{{ row.campus || '-' }}</span></template>
+        </el-table-column>
+        <el-table-column label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '正常' : '已禁用' }}

@@ -7,34 +7,57 @@
           <el-icon><DataLine /></el-icon>
           <span>数据统计</span>
         </el-menu-item>
+
+        <!-- 运营人员 + 管理员：商品管理 -->
         <el-menu-item index="/items">
           <el-icon><Goods /></el-icon>
           <span>商品管理</span>
         </el-menu-item>
+
+        <!-- 运营人员 + 管理员：分类管理 -->
         <el-menu-item index="/categories">
           <el-icon><Files /></el-icon>
           <span>分类管理</span>
         </el-menu-item>
-        <el-menu-item index="/users">
-          <el-icon><User /></el-icon>
-          <span>用户管理</span>
-        </el-menu-item>
-        <el-menu-item index="/orders">
-          <el-icon><Document /></el-icon>
-          <span>订单管理</span>
-        </el-menu-item>
-        <el-menu-item index="/reports">
-          <el-icon><Warning /></el-icon>
-          <span>举报管理</span>
-        </el-menu-item>
-        <el-menu-item index="/logs">
-          <el-icon><Clock /></el-icon>
-          <span>操作日志</span>
-        </el-menu-item>
+
+        <!-- 运营人员 + 管理员：活动管理 -->
         <el-menu-item index="/activities">
           <el-icon><Calendar /></el-icon>
           <span>活动管理</span>
         </el-menu-item>
+
+        <!-- 运营人员 + 管理员：校园服务管理 -->
+        <el-menu-item index="/campus-services">
+          <el-icon><House /></el-icon>
+          <span>校园服务管理</span>
+        </el-menu-item>
+
+        <!-- 运营人员 + 管理员：公益管理 -->
+        <el-menu-item index="/charity">
+          <el-icon><Present /></el-icon>
+          <span>公益管理</span>
+        </el-menu-item>
+
+        <!-- 仅超级管理员可见 -->
+        <template v-if="isAdmin">
+          <div class="menu-divider">{{ '平台管理' }}</div>
+          <el-menu-item index="/users">
+            <el-icon><User /></el-icon>
+            <span>用户管理</span>
+          </el-menu-item>
+          <el-menu-item index="/orders">
+            <el-icon><Document /></el-icon>
+            <span>订单管理</span>
+          </el-menu-item>
+          <el-menu-item index="/reports">
+            <el-icon><Warning /></el-icon>
+            <span>举报管理</span>
+          </el-menu-item>
+          <el-menu-item index="/logs">
+            <el-icon><Clock /></el-icon>
+            <span>操作日志</span>
+          </el-menu-item>
+        </template>
       </el-menu>
     </el-aside>
     
@@ -59,13 +82,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { DataLine, Goods, Files, User, Document, Warning, Clock, Calendar } from '@element-plus/icons-vue'
+import { DataLine, Goods, Files, User, Document, Warning, Clock, Calendar, House, Present } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const user = ref(null)
+
+const isAdmin = computed(() => user.value?.role === 'admin')
 
 onMounted(() => {
   const userStr = localStorage.getItem('user')
@@ -123,5 +148,12 @@ const handleCommand = async (command) => {
 }
 .user-info {
   cursor: pointer;
+}
+.menu-divider {
+  padding: 14px 20px 6px;
+  font-size: 12px;
+  color: #606266;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 8px;
 }
 </style>
