@@ -42,6 +42,20 @@
           <el-input v-model="form.description" type="textarea" :rows="5" placeholder="详细描述你的商品..." />
         </el-form-item>
 
+        <!-- 期望收货地址 -->
+        <el-form-item label="期望交易地址">
+        <div style="display: flex; gap: 8px; width: 100%;">
+         <el-input
+           v-model="form.expected_address"
+           placeholder="请点击右侧按钮在地图上选择期望交易位置"
+           readonly
+          />
+         <el-button type="primary" @click="openMapPicker">地图选点</el-button>
+        </div>
+        <div v-if="form.expected_longitude" style="margin-top: 6px; font-size: 12px; color: #909399;">
+         坐标：{{ form.expected_longitude.toFixed(6) }}, {{ form.expected_latitude.toFixed(6) }}
+        </div>
+      </el-form-item>
         <!-- 自定义标签 -->
         <el-form-item label="自定义标签">
           <div class="tag-wrapper">
@@ -95,11 +109,31 @@
         </el-form-item>
       </el-form>
     </el-card>
+    <!-- 地图选点弹窗 -->
+    <el-dialog
+      v-model="mapDialogVisible"
+      title="选择期望交易地址"
+      width="700px"
+      destroy-on-close
+      @closed="() => { if (map) { map.destroy(); map = null; marker = null } }"
+    >
+      <div ref="mapContainer" style="width: 100%; height: 420px; border-radius: 8px;"></div>
+      <div style="margin-top: 12px; padding: 10px; background: #f5f7fa; border-radius: 6px;">
+        <div v-if="selectedAddress">
+          <strong>当前选择：</strong>{{ selectedAddress }}
+        </div>
+        <div v-else style="color: #909399;">请在地图上点击选择位置</div>
+      </div>
+      <template #footer>
+        <el-button @click="mapDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmLocation">确认位置</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { EditPen, Plus } from '@element-plus/icons-vue'
@@ -128,9 +162,11 @@ const form = ref({
   activity_id: null,
   price: null,
   quantity: 1,
-  description: ''
+  description: '',
+  expected_address: '',
+  expected_longitude: null,
+  expected_latitude: null
 })
-
 const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
   category_id: [{ required: true, message: '请选择分类', trigger: 'change' }],
@@ -157,6 +193,7 @@ const fetchActivities = async () => {
   } catch (e) { /* ignore */ }
 }
 
+
 // 加载商品用于编辑
 const loadItemForEdit = async () => {
   if (!editItemId.value) return
@@ -172,7 +209,10 @@ const loadItemForEdit = async () => {
         activity_id: item.activity_id || null,
         price: item.price || null,
         quantity: item.quantity || 1,
-        description: item.description || ''
+        description: item.description || '',
+        expected_address: item.expected_address || '',
+        expected_longitude: item.expected_longitude || null,
+        expected_latitude: item.expected_latitude || null
       }
 
       if (item.images && item.images.length > 0) {
@@ -239,6 +279,12 @@ const handlePublish = async () => {
       tags: tags.value
     }
 
+    console.log('【前端提交】payload 中的地址信息：', {
+  expected_address: payload.expected_address,
+  expected_longitude: payload.expected_longitude,
+  expected_latitude: payload.expected_latitude
+})
+
     let res
     if (isEdit.value) {
       res = await api.put(`/items/${editItemId.value}`, payload)
@@ -258,6 +304,90 @@ const handlePublish = async () => {
     loading.value = false
   }
 }
+
+// ==================== 地图选点相关 ====================
+const mapDialogVisible = ref(false)
+const mapContainer = ref(null)
+let map = null
+let marker = null
+let geocoder = null
+const selectedAddress = ref('')
+const selectedLng = ref(null)
+const selectedLat = ref(null)
+
+const openMapPicker = () => {
+  mapDialogVisible.value = true
+  nextTick(() => {
+    initMap()
+  })
+}
+
+const initMap = () => {
+  if (!window.AMap) {
+    ElMessage.error('地图加载失败，请检查高德Key')
+    return
+  }
+
+  if (map) {
+    map.destroy()
+    map = null
+  }
+
+  map = new AMap.Map(mapContainer.value, {
+    zoom: 16,
+    viewMode: '2D'
+  })
+
+  geocoder = new AMap.Geocoder({ city: '全国' })
+
+  // 自动定位到当前位置
+  const geolocation = new AMap.Geolocation({
+    enableHighAccuracy: true,
+    timeout: 10000
+  })
+  map.addControl(geolocation)
+  geolocation.getCurrentPosition((status, result) => {
+    if (status === 'complete') {
+      map.setCenter([result.position.getLng(), result.position.getLat()])
+    } else {
+      map.setCenter([121.4737, 31.2304]) // 上海默认
+    }
+  })
+
+  map.on('click', (e) => {
+    const lng = e.lnglat.getLng()
+    const lat = e.lnglat.getLat()
+    selectedLng.value = lng
+    selectedLat.value = lat
+
+    if (marker) {
+      marker.setPosition([lng, lat])
+    } else {
+      marker = new AMap.Marker({ position: [lng, lat], map })
+    }
+
+    geocoder.getAddress([lng, lat], (status, result) => {
+      if (status === 'complete' && result.regeocode) {
+        selectedAddress.value = result.regeocode.formattedAddress
+      } else {
+        selectedAddress.value = `${lng.toFixed(5)}, ${lat.toFixed(5)}`
+      }
+    })
+  })
+}
+
+const confirmLocation = () => {
+  if (!selectedLng.value) {
+    ElMessage.warning('请先在地图上点击选择位置')
+    return
+  }
+  form.value.expected_address = selectedAddress.value
+  form.value.expected_longitude = selectedLng.value
+  form.value.expected_latitude = selectedLat.value
+  mapDialogVisible.value = false
+  ElMessage.success('位置选择成功')
+}
+
 
 onMounted(() => {
   fetchCategories()

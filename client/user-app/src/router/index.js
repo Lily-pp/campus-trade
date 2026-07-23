@@ -8,6 +8,12 @@ const routes = [
     component: () => import('@/views/Login.vue')
   },
   {
+  path: '/lost-found',
+  name: 'LostFound',
+  component: () => import('../views/LostFound.vue'),
+  meta: { title: '失物招领' }
+  },
+  {
     path: '/register',
     name: 'register',
     component: () => import('@/views/Register.vue')

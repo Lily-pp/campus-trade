@@ -51,6 +51,19 @@
     <div v-if="!route.query.keyword && !filters.category_id && activities.length > 0" class="activity-section">
       <div class="section-title">校园活动专区</div>
       <div class="activity-grid">
+
+      <!-- ==================== 失物招领入口 ==================== -->
+        <div class="activity-card lost-found-card" @click="router.push('/lost-found')">
+          <div class="activity-card-banner lost-found-banner">
+           <el-icon :size="32" color="#fff"><Search /></el-icon>
+         </div>
+         <div class="activity-card-info">
+           <div class="activity-card-name">失物招领</div>
+           <div class="activity-card-desc">寻找丢失物品 / 发布拾到物品</div>
+           <div class="activity-card-count">点击进入</div>
+         </div>
+        </div>
+  
         <div
           v-for="act in activities"
           :key="act.id"
@@ -130,7 +143,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Picture, Calendar } from '@element-plus/icons-vue'
+import { Picture, Calendar, Search } from '@element-plus/icons-vue'
 import api from '@/api'
 import { throttle, debounce } from '@/utils/performance'
 import { useItemStore } from '@/stores/item'
