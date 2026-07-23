@@ -20,7 +20,7 @@ router.get('/my', authenticate, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT o.id, o.price, o.status, o.created_at,
-                    i.id AS item_id, i.title AS item_title,
+                    i.id AS item_id, i.title AS item_title, i.activity_id,
                     s.id AS seller_id, s.username AS seller_name, s.campus AS seller_campus,
                     (SELECT img.image_url FROM item_images img WHERE img.item_id = i.id ORDER BY img.sort_order LIMIT 1) AS cover_image
              FROM orders o

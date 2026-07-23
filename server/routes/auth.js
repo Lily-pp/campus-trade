@@ -120,7 +120,7 @@ router.post('/register', async (req, res) => {
 router.get('/me', authenticate, async (req, res) => {
     try {
         const result = await db.query(
-            'SELECT id, username, real_name, role, campus, avatar, status, created_at FROM users WHERE id = $1',
+            'SELECT id, username, real_name, role, campus, avatar, status, charity_points, created_at FROM users WHERE id = $1',
             [req.user.id]
         );
 

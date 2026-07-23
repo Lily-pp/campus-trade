@@ -15,7 +15,7 @@ router.get('/trending', async (req, res) => {
        FROM items i
        LEFT JOIN categories c ON i.category_id = c.id
        LEFT JOIN users u ON i.user_id = u.id
-       WHERE i.status = 'on_sale' AND i.is_approved = TRUE
+       WHERE i.status = 'on_sale' AND (i.item_type IS NULL OR i.item_type = 'sale') AND i.is_approved = TRUE AND (i.item_type IS NULL OR i.item_type = 'sale')
          AND i.created_at >= NOW() - INTERVAL '30 days'
        ORDER BY i.views_count DESC
        LIMIT 4`
@@ -50,7 +50,7 @@ router.get('/similar/:itemId', async (req, res) => {
        FROM items i
        LEFT JOIN categories c ON i.category_id = c.id
        LEFT JOIN users u ON i.user_id = u.id
-       WHERE i.status = 'on_sale'
+       WHERE i.status = 'on_sale' AND (i.item_type IS NULL OR i.item_type = 'sale')
          AND i.is_approved = TRUE
          AND i.id != $1
          AND i.category_id = $2

@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
 
         const offset = (parseInt(page) - 1) * parseInt(pageSize);
         const params = [];
-        const conditions = ["i.status = 'on_sale'"];
+        const conditions = ["i.status = 'on_sale'", "(i.item_type IS NULL OR i.item_type = 'sale')"];
 
         if (category_id) {
             params.push(parseInt(category_id));
@@ -87,13 +87,23 @@ router.get('/', async (req, res) => {
         params.push(parseInt(pageSize));
         params.push(offset);
         const dataResult = await db.query(
-                `SELECT i.id, i.title, i.price, i.status, i.created_at, i.views_count, i.favorites_count,
+                `SELECT i.id, i.title, i.price,
+                    i.user_id AS seller_user_id,
+                    CASE WHEN a.subsidy_enabled = TRUE
+                         THEN ROUND((i.price * (1 - a.subsidy_discount_rate))::numeric, 2)
+                         ELSE i.price
+                    END AS display_price,
+                    i.status, i.created_at, i.views_count, i.favorites_count,
+                    i.activity_id,
+                    a.subsidy_enabled,
+                    a.name AS activity_name,
                     c.name AS category_name,
                     u.username AS seller_name, u.campus AS seller_campus,
                     (SELECT image_url FROM item_images WHERE item_id = i.id ORDER BY sort_order LIMIT 1) AS cover_image
              FROM items i
              LEFT JOIN categories c ON i.category_id = c.id
              LEFT JOIN users u ON i.user_id = u.id
+             LEFT JOIN activities a ON i.activity_id = a.id
              ${where}
              ORDER BY ${orderBy}
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -147,16 +157,19 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
         params.push(parseInt(pageSize));
         params.push(offset);
         const listResult = await db.query(
-                `SELECT i.id, i.title, i.price, i.status,
-                    i.is_approved,
+                `SELECT i.id, i.title, i.price,
+                    i.user_id AS seller_user_id, i.status,
+                    i.is_approved, i.activity_id,
                     CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
                     i.views_count, i.favorites_count,
                     i.created_at, i.updated_at,
                     c.name AS category_name,
-                    u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus
+                    u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus,
+                    a.name AS activity_name
              FROM items i
              LEFT JOIN categories c ON i.category_id = c.id
              LEFT JOIN users u ON i.user_id = u.id
+             LEFT JOIN activities a ON i.activity_id = a.id
              ${where}
              ORDER BY i.created_at DESC, i.id ASC
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -174,7 +187,8 @@ router.get('/all', authenticate, adminOnly, async (req, res) => {
 router.get('/my', authenticate, async (req, res) => {
     try {
         const result = await db.query(
-                `SELECT i.id, i.title, i.price, i.status,
+                `SELECT i.id, i.title, i.price,
+                    i.user_id AS seller_user_id, i.status,
                     i.is_approved,
                     CASE WHEN i.status = 'sold' THEN 0 ELSE COALESCE(i.quantity, 1) END AS quantity,
                     i.views_count, i.favorites_count, i.created_at,
@@ -201,10 +215,17 @@ router.get('/:id', async (req, res) => {
         const result = await db.query(
             `SELECT i.*,
                     c.name AS category_name,
-                    u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus, u.real_name AS seller_real_name
+                    u.id AS seller_id, u.username AS seller_name, u.campus AS seller_campus, u.real_name AS seller_real_name,
+                    a.name AS activity_name, a.type AS activity_type,
+                    a.subsidy_enabled, a.subsidy_discount_rate,
+                    CASE WHEN a.subsidy_enabled = TRUE
+                         THEN ROUND((i.price * (1 - a.subsidy_discount_rate))::numeric, 2)
+                         ELSE i.price
+                    END AS display_price
              FROM items i
              LEFT JOIN categories c ON i.category_id = c.id
              LEFT JOIN users u ON i.user_id = u.id
+             LEFT JOIN activities a ON i.activity_id = a.id
              WHERE i.id = $1`,
             [id]
         );
@@ -243,7 +264,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
     try {
         console.log('【发布商品】收到的 tags:', req.body.tags);
-        const { title, description, price, category_id, campus, images, quantity, tags, activity_id } = req.body;
+        const { title, description, price, category_id, campus, images, quantity, tags, activity_id, school, major, exam_year, is_landed, item_type, free_deadline } = req.body;
 
         if (!title || price === undefined || !category_id) {
             return res.status(400).json({ code: 1, message: '标题、价格、分类不能为空', data: null });
@@ -263,10 +284,10 @@ router.post('/', authenticate, async (req, res) => {
         const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
 
         const result = await db.query(
-            `INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity, activity_id)
-             VALUES ($1, $2, $3, $4, $5, 'pending', FALSE, $6, $7, $8)
+            `INSERT INTO items (title, description, price, category_id, user_id, status, is_approved, campus, quantity, activity_id, school, major, exam_year, is_landed, item_type, free_deadline)
+             VALUES ($1, $2, $3, $4, $5, 'pending', FALSE, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING id`,
-            [title, description || null, parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty, activity_id ? parseInt(activity_id) : null]
+            [title, description || null, item_type === 'charity' ? 0 : parseFloat(price), parseInt(category_id), req.user.id, campus || null, qty, activity_id ? parseInt(activity_id) : null, school || null, major || null, exam_year ? parseInt(exam_year) : null, is_landed === true ? true : null, item_type || 'sale', free_deadline || null]
         );
 
         const itemId = result.rows[0].id;
@@ -478,7 +499,7 @@ router.put('/:id', authenticate, async (req, res) => {
         // 2. 提取可修改字段
         const {
             title, description, price, category_id, campus,
-            quantity, images, tags, activity_id
+            quantity, images, tags, activity_id, school, major, exam_year, is_landed
         } = req.body;
 
         // 如果指定了 activity_id，验证活动存在且有效
@@ -502,10 +523,14 @@ router.put('/:id', authenticate, async (req, res) => {
                 campus = $5,
                 quantity = $6,
                 activity_id = $7,
+                school = COALESCE($8, school),
+                major = COALESCE($9, major),
+                exam_year = COALESCE($10, exam_year),
+                is_landed = COALESCE($11, is_landed),
                 status = 'pending',
                 is_approved = FALSE,
                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $8`,
+             WHERE id = $12`,
             [
                 title,
                 description || null,
@@ -514,6 +539,10 @@ router.put('/:id', authenticate, async (req, res) => {
                 campus || null,
                 parseInt(quantity) || 1,
                 activity_id ? parseInt(activity_id) : null,
+                school || null,
+                major || null,
+                exam_year ? parseInt(exam_year) : null,
+                is_landed === true ? true : (is_landed === false ? false : null),
                 itemId
             ]
         );
