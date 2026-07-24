@@ -12,8 +12,8 @@
 
     <div class="auth-card">
       <div class="auth-logo">
-        <span class="auth-logo-icon">🎒</span>
-        <span class="auth-logo-text">校园跳蚤</span>
+
+        <span class="auth-logo-text">CampusTrade</span>
       </div>
       <h2>加入我们 🎉</h2>
       <p class="auth-subtitle">注册成为校园大家庭的一员</p>
@@ -94,7 +94,7 @@ const handleRegister = async () => {
   try {
     const result = await userStore.register({ username, password, real_name, campus })
     if (result.code === 0) {
-      ElMessage.success('🎉 注册成功！欢迎加入校园跳蚤 ~')
+      ElMessage.success('🎉 注册成功！欢迎加入 CampusTrade ~')
       router.push('/')
     } else {
       ElMessage.error(result.message || '注册失败')
@@ -172,7 +172,6 @@ const handleRegister = async () => {
   gap: 8px;
   margin-bottom: 20px;
 }
-.auth-logo-icon { font-size: 36px; }
 .auth-logo-text {
   font-size: 22px;
   font-weight: 800;

@@ -9,7 +9,7 @@
         <div class="welcome-deco deco-4">🌸</div>
       </div>
       <div class="welcome-content">
-        <h1 class="welcome-title">欢迎来到 <span class="campus-gradient-text">校园跳蚤</span></h1>
+        <h1 class="welcome-title">欢迎来到 <span class="campus-gradient-text">CampusTrade</span></h1>
         <p class="welcome-subtitle">让闲置物品在校园里找到新主人 🌱</p>
         <div class="welcome-stats">
           <div class="stat-item">

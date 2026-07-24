@@ -13,8 +13,8 @@
     <div class="auth-card">
       <!-- Logo -->
       <div class="auth-logo">
-        <span class="auth-logo-icon">🎒</span>
-        <span class="auth-logo-text">校园跳蚤</span>
+
+        <span class="auth-logo-text">CampusTrade</span>
       </div>
       <h2>欢迎回来 👋</h2>
       <p class="auth-subtitle">登录你的校园交易账号</p>
@@ -165,9 +165,6 @@ const handleLogin = async () => {
   justify-content: center;
   gap: 8px;
   margin-bottom: 24px;
-}
-.auth-logo-icon {
-  font-size: 36px;
 }
 .auth-logo-text {
   font-size: 22px;

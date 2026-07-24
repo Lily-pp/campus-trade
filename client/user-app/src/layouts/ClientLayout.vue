@@ -7,9 +7,9 @@
       <div class="header-inner">
         <!-- Logo -->
         <router-link to="/" class="logo">
-          <div class="logo-icon">🎒</div>
+
           <div class="logo-text">
-            <span class="logo-main">校园跳蚤</span>
+            <span class="logo-main">CampusTrade</span>
             <span class="logo-sub">CampusTrade</span>
           </div>
         </router-link>
@@ -102,7 +102,7 @@
       <div class="footer-inner">
         <div class="footer-top">
           <div class="footer-brand">
-            <div class="footer-logo">🎒 校园跳蚤</div>
+            <div class="footer-logo">� CampusTrade</div>
             <p class="footer-desc">CampusTrade - 属于大学生的二手交易平台<br/>让闲置物品在校园里找到新主人 🎓</p>
           </div>
           <div class="footer-links">
@@ -208,11 +208,6 @@ const handleCommand = (cmd) => {
   text-decoration: none;
   flex-shrink: 0;
 }
-.logo-icon {
-  font-size: 32px;
-  line-height: 1;
-  animation: campus-float 3s ease-in-out infinite;
-}
 .logo-text {
   display: flex;
   flex-direction: column;
@@ -258,6 +253,7 @@ const handleCommand = (cmd) => {
 .search-bar :deep(.el-input-group__append) {
   background: transparent;
   border: none;
+  box-shadow: none !important;
 }
 .search-btn {
   background: linear-gradient(135deg, #FF7E67, #FD79A8) !important;
@@ -268,6 +264,8 @@ const handleCommand = (cmd) => {
   font-size: 13px !important;
   font-weight: 600 !important;
   margin-right: 4px;
+  outline: none !important;
+  box-shadow: none !important;
   transition: all 0.3s ease !important;
 }
 .search-btn:hover {
