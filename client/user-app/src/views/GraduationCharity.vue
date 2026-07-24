@@ -20,9 +20,9 @@
               <span class="stat-label">公益捐赠</span>
             </div>
           </div>
-          <el-button type="warning" size="large" @click="router.push('/publish?type=charity')" style="margin-top:16px">
+          <button class="charity-give-btn" @click="router.push('/publish?type=charity')">
             🎁 我要免费赠送
-          </el-button>
+          </button>
         </div>
       </div>
     </div>

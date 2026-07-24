@@ -1,66 +1,67 @@
 <template>
   <div class="profile-page">
     <!-- 用户信息卡 -->
-    <el-card class="user-card" shadow="never">
-      <div class="user-header">
-        <el-avatar :size="64" icon="UserFilled" />
-        <div class="user-meta">
-          <h2>
-            {{ userStore.user?.real_name || userStore.user?.username }}
-            <span class="charity-badge" v-if="userStore.user?.charity_points">
-              🎖️ {{ userStore.user.charity_points }} 公益积分
-            </span>
-          </h2>
-          <p v-if="userStore.user?.campus">
-            <el-icon><Location /></el-icon> {{ userStore.user.campus }}
-          </p>
-          <p class="user-id">@{{ userStore.user?.username }}</p>
+    <div class="user-profile-card">
+      <div class="user-banner-bg"></div>
+      <div class="user-profile-body">
+        <div class="user-avatar-section">
+          <div class="user-avatar-lg">
+            {{ (userStore.user?.real_name || userStore.user?.username)?.[0] || 'U' }}
+          </div>
+          <span class="charity-badge" v-if="userStore.user?.charity_points">
+            🎖️ {{ userStore.user.charity_points }} 公益积分
+          </span>
         </div>
-        <el-button type="primary" plain @click="router.push('/publish')" class="publish-btn">
-          <el-icon><Plus /></el-icon> 发布商品
-        </el-button>
+        <div class="user-meta">
+          <h2>{{ userStore.user?.real_name || userStore.user?.username }}</h2>
+          <div class="user-meta-info">
+            <span v-if="userStore.user?.campus">📍 {{ userStore.user.campus }}</span>
+            <span>@{{ userStore.user?.username }}</span>
+          </div>
+        </div>
+        <button class="publish-btn" @click="router.push('/publish')">
+          📦 发布商品
+        </button>
       </div>
-    </el-card>
+    </div>
 
     <!-- Tab 面板 -->
-    <el-card shadow="never" class="tab-card">
+    <div class="profile-tab-card">
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <!-- 我的发布 -->
-        <el-tab-pane label="我的发布" name="published">
+        <el-tab-pane label="📋 我的发布" name="published">
           <div v-loading="loading">
-            <el-empty v-if="publishedItems.length === 0 && !loading" description="还没有发布过商品">
-              <el-button type="primary" @click="router.push('/publish')">去发布</el-button>
+            <el-empty v-if="publishedItems.length === 0 && !loading" description="还没有发布过商品 ~">
+              <button class="empty-action-btn" @click="router.push('/publish')">📦 去发布</button>
             </el-empty>
             <div v-else class="my-item-list">
               <div v-for="item in publishedItems" :key="item.id" class="my-item" @click="router.push(`/item/${item.id}`)">
                 <div class="my-item-left">
                   <div class="my-item-title">{{ item.title }}</div>
                   <div class="my-item-meta">
-                    <el-tag size="small" type="info">{{ item.category_name }}</el-tag>
-                    <el-tag size="small" :type="getStatusType(item)">{{ getStatusLabel(item) }}</el-tag>
-                    <el-tag v-if="item.status === 'sold'" size="small" type="danger">已售出</el-tag>
+                    <span class="meta-tag">{{ item.category_name }}</span>
+                    <span class="meta-tag" :class="item.status">{{ getStatusLabel(item) }}</span>
+                    <span v-if="item.status === 'sold'" class="meta-tag sold">已售出</span>
                   </div>
                 </div>
                 <div class="my-item-right">
                   <div class="my-item-price">¥{{ item.price }}</div>
                   <div class="my-item-stats">
-                    <span style="color:#606266">库存：{{ item.quantity ?? 1 }}</span>
-                    <span><el-icon><View /></el-icon>{{ item.views_count || 0 }}</span>
-                    <span><el-icon><Star /></el-icon>{{ item.favorites_count || 0 }}</span>
+                    <span>📦 {{ item.quantity ?? 1 }}</span>
+                    <span>👁️ {{ item.views_count || 0 }}</span>
+                    <span>❤️ {{ item.favorites_count || 0 }}</span>
                   </div>
                   <div class="my-item-actions" @click.stop>
-                    <el-button
+                    <button
                       v-if="item.status === 'on_sale' || item.status === 'pending'"
-                      size="small" type="warning" plain
-                      :loading="item._loading"
+                      class="action-sm-btn warn-btn"
                       @click.stop="toggleItemStatus(item, 'off')"
-                    >下架</el-button>
-                    <el-button
+                    >下架</button>
+                    <button
                       v-if="item.status === 'off' && item.is_approved"
-                      size="small" type="success" plain
-                      :loading="item._loading"
+                      class="action-sm-btn success-btn"
                       @click.stop="toggleItemStatus(item, 'on_sale')"
-                    >重新上架</el-button>
+                    >上架</button>
                   </div>
                 </div>
               </div>
@@ -69,26 +70,23 @@
         </el-tab-pane>
 
         <!-- 我的收藏 -->
-        <el-tab-pane label="我的收藏" name="favorites">
+        <el-tab-pane label="❤️ 我的收藏" name="favorites">
           <div v-loading="loading">
-            <el-empty v-if="favoriteItems.length === 0 && !loading" description="还没有收藏过商品">
-              <el-button type="primary" @click="router.push('/')">去逛逛</el-button>
+            <el-empty v-if="favoriteItems.length === 0 && !loading" description="还没有收藏过商品 ~">
+              <button class="empty-action-btn" @click="router.push('/')">🎯 去逛逛</button>
             </el-empty>
             <div v-else class="my-item-list">
               <div v-for="item in favoriteItems" :key="item.id" class="my-item" @click="router.push(`/item/${item.id}`)">
                 <div class="my-item-left">
                   <div class="my-item-title">{{ item.title }}</div>
                   <div class="my-item-meta">
-                    <el-tag size="small" type="info">{{ item.category_name }}</el-tag>
+                    <span class="meta-tag">{{ item.category_name }}</span>
                     <span class="meta-seller">{{ item.seller_name }}</span>
                   </div>
                 </div>
                 <div class="my-item-right">
                   <div class="my-item-price">¥{{ item.price }}</div>
-                  <el-button
-                    size="small" type="danger" text
-                    @click.stop="removeFavorite(item.id)"
-                  >取消收藏</el-button>
+                  <button class="unfav-btn" @click.stop="removeFavorite(item.id)">取消收藏</button>
                 </div>
               </div>
             </div>
@@ -96,7 +94,7 @@
         </el-tab-pane>
 
         <!-- 我的浏览 -->
-        <el-tab-pane label="我的浏览" name="history">
+        <el-tab-pane label="👁️ 我的浏览" name="history">
           <div v-loading="loading">
             <el-empty v-if="viewHistory.length === 0 && !loading" description="还没有浏览记录" />
             <div v-else class="my-item-list">
@@ -104,7 +102,7 @@
                 <div class="my-item-left">
                   <div class="my-item-title">{{ item.title }}</div>
                   <div class="my-item-meta">
-                    <el-tag size="small" type="info">{{ item.category_name }}</el-tag>
+                    <span class="meta-tag">{{ item.category_name }}</span>
                     <span class="meta-time">{{ formatTime(item.viewed_at) }}</span>
                   </div>
                 </div>
@@ -117,10 +115,10 @@
         </el-tab-pane>
 
         <!-- 我的代金券 -->
-        <el-tab-pane label="我的代金券" name="vouchers">
+        <el-tab-pane label="🎫 我的代金券" name="vouchers">
           <div v-loading="vouchersLoading">
-            <el-empty v-if="vouchers.length === 0" description="还没有代金券">
-              <span class="empty-hint">参加官方补贴活动，成交后即可抽取代金券</span>
+            <el-empty v-if="vouchers.length === 0" description="还没有代金券 ~">
+              <span class="empty-hint">参加官方补贴活动，成交后即可抽取代金券 🎰</span>
             </el-empty>
             <div v-else class="voucher-list">
               <div v-for="v in vouchers" :key="v.id" class="voucher-card" :class="{ used: v.status !== 'unused', expired: v.status === 'expired' }">
@@ -129,19 +127,19 @@
                     <span class="voucher-symbol">¥</span>
                     <span class="voucher-value">{{ v.amount }}</span>
                   </div>
-                  <div class="voucher-condition" v-if="v.status === 'unused'">
-                    满任意金额可用
-                  </div>
                 </div>
                 <div class="voucher-right">
-                  <div class="voucher-source">🏷️ {{ v.activity_name || '官方活动' }}</div>
+                  <div class="voucher-source">{{ v.activity_name || '官方活动' }}</div>
                   <div class="voucher-time">获得：{{ formatTime(v.obtained_at) }}</div>
                   <div class="voucher-time">有效期至：{{ formatTime(v.expires_at) }}</div>
-                  <el-tag v-if="v.status === 'unused'" type="success" size="small">可使用</el-tag>
-                  <el-tag v-else-if="v.status === 'used'" type="info" size="small">已使用</el-tag>
-                  <el-tag v-else type="danger" size="small">已过期</el-tag>
-                  <el-button v-if="v.status === 'unused'" type="primary" size="small" style="margin-top:6px"
-                    @click="router.push('/')">去首页购买</el-button>
+                  <div class="voucher-status">
+                    <span v-if="v.status === 'unused'" class="v-status active">✅ 可使用</span>
+                    <span v-else-if="v.status === 'used'" class="v-status used">已使用</span>
+                    <span v-else class="v-status expired">已过期</span>
+                  </div>
+                  <button v-if="v.status === 'unused'" class="use-voucher-btn" @click="router.push('/')">
+                    去使用 🛒
+                  </button>
                 </div>
               </div>
             </div>
@@ -462,135 +460,221 @@ onMounted(fetchPublished)
   margin: 0 auto;
 }
 
-.user-card {
-  margin-bottom: 16px;
+/* ===== 用户资料卡片 ===== */
+.user-profile-card {
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  border: 1px solid rgba(240, 230, 224, 0.3);
 }
-
-.user-header {
+.user-banner-bg {
+  height: 80px;
+  background: linear-gradient(135deg, #FFE8E0 0%, #FFD4E0 50%, #F0E8FF 100%);
+}
+.user-profile-body {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  padding: 0 28px 24px;
+  margin-top: -32px;
 }
-
+.user-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.user-avatar-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 16px rgba(255, 126, 103, 0.2);
+}
+.charity-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #E8963E;
+  background: rgba(253, 203, 110, 0.15);
+  padding: 3px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
 .user-meta {
   flex: 1;
 }
-
 .user-meta h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #2D3436;
 }
-
-.user-meta p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #909399;
+.user-meta-info {
   display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.user-id {
-  color: #c0c4cc !important;
-}
-
-.charity-badge {
-  font-size: 13px; font-weight: 500; color: #e6a23c;
-  background: linear-gradient(135deg, #fef0f0, #fdf6ec);
-  padding: 3px 12px; border-radius: 20px; margin-left: 10px;
-  white-space: nowrap;
+  gap: 12px;
+  font-size: 13px;
+  color: #8892A0;
+  flex-wrap: wrap;
 }
 .publish-btn {
-  margin-left: auto;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 126, 103, 0.2);
+  white-space: nowrap;
+}
+.publish-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 126, 103, 0.35);
 }
 
-.tab-card {
+/* ===== Tab 面板 ===== */
+.profile-tab-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  border: 1px solid rgba(240, 230, 224, 0.3);
   min-height: 300px;
 }
 
+/* ===== 列表 ===== */
 .my-item-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .my-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  background: #fafafa;
-  border-radius: 8px;
+  padding: 14px 18px;
+  background: #FFFAF8;
+  border-radius: 14px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  border: 1px solid transparent;
 }
-
 .my-item:hover {
-  background: #f0f7ff;
+  background: #FFF0EB;
+  border-color: rgba(255, 126, 103, 0.1);
 }
-
 .my-item-left {
   min-width: 0;
   flex: 1;
 }
-
 .my-item-title {
   font-size: 15px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: #2D3436;
   margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .my-item-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #909399;
+  gap: 6px;
+  flex-wrap: wrap;
 }
-
+.meta-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 126, 103, 0.06);
+  color: #FF7E67;
+}
+.meta-tag.on_sale { background: rgba(0, 184, 148, 0.1); color: #00B894; }
+.meta-tag.sold { background: rgba(178, 190, 195, 0.15); color: #8892A0; }
+.meta-tag.off { background: rgba(255, 183, 77, 0.12); color: #E8963E; }
+.meta-tag.pending { background: rgba(108, 92, 231, 0.1); color: #6C5CE7; }
 .meta-seller, .meta-time {
   font-size: 12px;
-  color: #909399;
+  color: #8892A0;
 }
-
 .my-item-right {
   text-align: right;
   flex-shrink: 0;
-  margin-left: 16px;
+  margin-left: 20px;
 }
-
 .my-item-price {
   font-size: 18px;
-  font-weight: bold;
-  color: #f56c6c;
+  font-weight: 700;
+  color: #FF7E67;
   margin-bottom: 4px;
 }
-
 .my-item-stats {
   display: flex;
-  gap: 10px;
-  font-size: 12px;
-  color: #c0c4cc;
+  gap: 8px;
+  font-size: 11px;
+  color: #B2BEC3;
   justify-content: flex-end;
 }
-
-.my-item-stats span {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .my-item-actions {
   margin-top: 6px;
   display: flex;
+  gap: 6px;
   justify-content: flex-end;
 }
+.action-sm-btn {
+  padding: 4px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.warn-btn {
+  background: rgba(255, 183, 77, 0.12);
+  color: #E8963E;
+}
+.warn-btn:hover {
+  background: #E8963E;
+  color: #fff;
+}
+.success-btn {
+  background: rgba(0, 184, 148, 0.1);
+  color: #00B894;
+}
+.success-btn:hover {
+  background: #00B894;
+  color: #fff;
+}
+.unfav-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #FF6B6B;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.unfav-btn:hover {
+  background: rgba(255, 107, 107, 0.08);
+}
 
+/* ===== 举报区 ===== */
 .reports-section {
   display: flex;
   flex-direction: column;
@@ -599,34 +683,57 @@ onMounted(fetchPublished)
   padding: 60px 0;
   text-align: center;
 }
-
-.view-reports-btn {
-  margin-bottom: 16px;
-}
-
 .reports-hint {
-  color: #909399;
+  color: #8892A0;
   font-size: 14px;
-  margin: 0;
+  margin: 12px 0 0;
 }
 
-.empty-hint { color: #c0c4cc; font-size: 13px; display: block; margin-top: 8px; }
-.detail-info { background: #f5f7fa; padding: 12px 16px; border-radius: 8px; margin-top: 12px; }
-.detail-info p { margin: 6px 0; font-size: 14px; color: #606266; }
+/* ===== 空状态 ===== */
+.empty-hint {
+  color: #B2BEC3;
+  font-size: 13px;
+  display: block;
+  margin-top: 8px;
+}
+.empty-action-btn {
+  padding: 10px 28px;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.empty-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 126, 103, 0.3);
+}
 
-.voucher-list { display: flex; flex-direction: column; gap: 12px; }
+/* ===== 代金券 ===== */
+.voucher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .voucher-card {
   display: flex;
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid #f0f0f0;
-  background: linear-gradient(135deg, #fff5f5, #fff);
+  border: 1px solid rgba(240, 230, 224, 0.4);
+  background: #fff;
+  transition: all 0.2s;
 }
-.voucher-card.used { opacity: 0.65; }
-.voucher-card.expired { opacity: 0.5; background: #f5f5f5; }
+.voucher-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.voucher-card.used { opacity: 0.6; }
+.voucher-card.expired { opacity: 0.45; }
 .voucher-left {
-  width: 130px;
-  background: linear-gradient(135deg, #f56c6c, #e6a23c);
+  width: 120px;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -634,19 +741,74 @@ onMounted(fetchPublished)
   padding: 16px;
   flex-shrink: 0;
 }
-.voucher-left .voucher-symbol { font-size: 18px; color: rgba(255,255,255,0.8); }
-.voucher-left .voucher-value { font-size: 32px; font-weight: bold; color: #fff; }
-.voucher-left .voucher-condition { font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 4px; }
+.voucher-left .voucher-symbol {
+  font-size: 16px;
+  color: rgba(255,255,255,0.8);
+}
+.voucher-left .voucher-value {
+  font-size: 30px;
+  font-weight: 800;
+  color: #fff;
+}
 .voucher-card.used .voucher-left,
-.voucher-card.expired .voucher-left { background: linear-gradient(135deg, #c0c4cc, #909399); }
+.voucher-card.expired .voucher-left {
+  background: linear-gradient(135deg, #B2BEC3, #8892A0);
+}
 .voucher-right {
   flex: 1;
-  padding: 16px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
 }
-.voucher-source { font-size: 15px; font-weight: 600; color: #303133; }
-.voucher-time { font-size: 12px; color: #909399; }
+.voucher-source {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2D3436;
+}
+.voucher-time {
+  font-size: 12px;
+  color: #8892A0;
+}
+.voucher-status {
+  margin-top: 4px;
+}
+.v-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+.v-status.active { color: #00B894; }
+.v-status.used { color: #8892A0; }
+.v-status.expired { color: #B2BEC3; }
+.use-voucher-btn {
+  margin-top: 6px;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+.use-voucher-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 126, 103, 0.3);
+}
+
+/* ===== 服务/需求详情 ===== */
+.detail-info {
+  background: #FFF8F5;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+.detail-info p {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #636E72;
+}
 </style>

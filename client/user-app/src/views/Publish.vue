@@ -3,9 +3,9 @@
     <el-card shadow="never">
       <template #header>
         <div style="display:flex;align-items:center;gap:8px">
-          <el-icon :size="20"><EditPen /></el-icon>
-          <span style="font-size:18px;font-weight:600">
-            {{ isEdit ? '编辑商品' : '发布商品' }}
+          <span style="font-size:22px">📦</span>
+          <span style="font-size:18px;font-weight:700;color:#2D3436">
+            {{ isEdit ? '✏️ 编辑商品' : '📦 发布商品' }}
           </span>
         </div>
       </template>

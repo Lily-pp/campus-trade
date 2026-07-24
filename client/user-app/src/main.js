@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import 'element-plus/dist/index.css'
+import './styles/campus-theme.css'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import LazyLoad from 'vue-lazyload'
 import App from './App.vue'

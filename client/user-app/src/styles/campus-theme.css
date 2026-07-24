@@ -1,0 +1,405 @@
+/* ============================================================
+   校园青春风格主题 - Campus Youth Theme
+   CampusTrade 校园二手交易平台
+   ============================================================ */
+
+/* === CSS 变量定义 === */
+:root {
+  --campus-primary: #FF7E67;
+  --campus-primary-light: #FFA08C;
+  --campus-primary-dark: #E8654F;
+  --campus-secondary: #6C5CE7;
+  --campus-secondary-light: #A29BFE;
+  --campus-green: #00B894;
+  --campus-green-light: #55EFC4;
+  --campus-pink: #FD79A8;
+  --campus-pink-light: #FDCBD6;
+  --campus-yellow: #FDCB6E;
+  --campus-orange: #FFB74D;
+  --campus-bg: #FFF8F5;
+  --campus-bg-alt: #FFF0EB;
+  --campus-bg-card: #FFFFFF;
+  --campus-text: #2D3436;
+  --campus-text-secondary: #8892A0;
+  --campus-text-light: #B2BEC3;
+  --campus-border: #F0E6E0;
+  --campus-shadow: 0 4px 20px rgba(255, 126, 103, 0.08);
+  --campus-shadow-hover: 0 8px 32px rgba(255, 126, 103, 0.15);
+  --campus-radius: 16px;
+  --campus-radius-sm: 10px;
+  --campus-radius-lg: 24px;
+  --header-height: 68px;
+}
+
+/* === 全局基础样式 === */
+* {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+body {
+  background: var(--campus-bg);
+  color: var(--campus-text);
+  margin: 0;
+  padding: 0;
+}
+
+/* === 滚动条美化 === */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--campus-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--campus-text-light);
+}
+
+/* === Element Plus 主题覆盖 === */
+
+/* 按钮 */
+.el-button--primary {
+  --el-button-bg-color: var(--campus-primary);
+  --el-button-border-color: var(--campus-primary);
+  --el-button-hover-bg-color: var(--campus-primary-light);
+  --el-button-hover-border-color: var(--campus-primary-light);
+  --el-button-active-bg-color: var(--campus-primary-dark);
+  --el-button-active-border-color: var(--campus-primary-dark);
+  border-radius: var(--campus-radius-sm);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.el-button--success {
+  --el-button-bg-color: var(--campus-green);
+  --el-button-border-color: var(--campus-green);
+  border-radius: var(--campus-radius-sm);
+  font-weight: 500;
+}
+.el-button--warning {
+  --el-button-bg-color: var(--campus-orange);
+  --el-button-border-color: var(--campus-orange);
+  border-radius: var(--campus-radius-sm);
+  font-weight: 500;
+}
+.el-button--danger {
+  --el-button-bg-color: var(--campus-pink);
+  --el-button-border-color: var(--campus-pink);
+  border-radius: var(--campus-radius-sm);
+  font-weight: 500;
+}
+.el-button--info {
+  border-radius: var(--campus-radius-sm);
+}
+.el-button.is-plain:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.el-button {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.el-button:hover {
+  transform: translateY(-1px);
+}
+.el-button:active {
+  transform: translateY(0);
+}
+
+/* 输入框 */
+.el-input__wrapper {
+  border-radius: var(--campus-radius-sm) !important;
+  box-shadow: 0 0 0 1px var(--campus-border) inset !important;
+  transition: all 0.3s ease !important;
+}
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--campus-primary-light) inset !important;
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px var(--campus-primary) inset !important;
+  border-color: var(--campus-primary) !important;
+}
+.el-input--large .el-input__wrapper {
+  border-radius: 12px !important;
+}
+
+/* 选择器 */
+.el-select .el-input__wrapper {
+  border-radius: var(--campus-radius-sm) !important;
+}
+
+/* 标签 */
+.el-tag {
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+}
+.el-tag--primary {
+  --el-tag-bg-color: rgba(108, 92, 231, 0.1);
+  --el-tag-text-color: var(--campus-secondary);
+}
+.el-tag--success {
+  --el-tag-bg-color: rgba(0, 184, 148, 0.1);
+  --el-tag-text-color: var(--campus-green);
+}
+.el-tag--warning {
+  --el-tag-bg-color: rgba(255, 183, 77, 0.15);
+  --el-tag-text-color: #E8963E;
+}
+.el-tag--danger {
+  --el-tag-bg-color: rgba(253, 121, 168, 0.12);
+  --el-tag-text-color: var(--campus-pink);
+}
+.el-tag--info {
+  --el-tag-bg-color: rgba(178, 190, 195, 0.15);
+  --el-tag-text-color: var(--campus-text-secondary);
+}
+
+/* 卡片 */
+.el-card {
+  border-radius: var(--campus-radius) !important;
+  border: none !important;
+  box-shadow: var(--campus-shadow) !important;
+  transition: all 0.3s ease !important;
+}
+.el-card:hover {
+  box-shadow: var(--campus-shadow-hover) !important;
+}
+.el-card__header {
+  border-bottom: 1px solid var(--campus-border) !important;
+  padding: 18px 24px !important;
+}
+
+/* 单选按钮组 */
+.el-radio-group .el-radio-button__inner {
+  border-radius: 20px !important;
+  border: 1px solid transparent !important;
+  padding: 8px 20px !important;
+  margin: 0 4px;
+  transition: all 0.3s ease;
+}
+.el-radio-button:first-child .el-radio-button__inner {
+  border-radius: 20px !important;
+  border-left: 1px solid transparent !important;
+}
+.el-radio-button:last-child .el-radio-button__inner {
+  border-radius: 20px !important;
+}
+.el-radio-button__original-radio:checked + .el-radio-button__inner {
+  background: linear-gradient(135deg, var(--campus-primary), var(--campus-pink)) !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 15px rgba(255, 126, 103, 0.3);
+  color: #fff !important;
+}
+.el-radio-button__inner {
+  background: var(--campus-bg-card) !important;
+  color: var(--campus-text-secondary) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+.el-radio-button__inner:hover {
+  color: var(--campus-primary) !important;
+}
+
+/* 分页 */
+.el-pagination {
+  --el-pagination-button-color: var(--campus-text-secondary);
+  --el-pagination-hover-color: var(--campus-primary);
+}
+.el-pagination button {
+  border-radius: 10px !important;
+}
+.el-pagination .el-pager li {
+  border-radius: 10px !important;
+  margin: 0 2px;
+  font-weight: 500;
+}
+.el-pagination .el-pager li.active {
+  background: linear-gradient(135deg, var(--campus-primary), var(--campus-pink)) !important;
+  color: #fff !important;
+}
+
+/* 弹窗 */
+.el-dialog {
+  border-radius: var(--campus-radius-lg) !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.12) !important;
+}
+.el-dialog__header {
+  padding: 24px 24px 0 !important;
+}
+.el-dialog__title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: var(--campus-text) !important;
+}
+.el-dialog__body {
+  padding: 24px !important;
+}
+.el-dialog__footer {
+  padding: 0 24px 24px !important;
+}
+
+/* 消息提示 */
+.el-message {
+  border-radius: var(--campus-radius-sm) !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
+}
+.el-message--success {
+  background: linear-gradient(135deg, #E8F8F5, #D4EFDF) !important;
+}
+.el-message--warning {
+  background: linear-gradient(135deg, #FEF9E7, #FDEBD0) !important;
+}
+.el-message--error {
+  background: linear-gradient(135deg, #FDEDEC, #F5B7B1) !important;
+}
+
+/* 警告条 */
+.el-alert {
+  border-radius: var(--campus-radius-sm) !important;
+  border: none !important;
+}
+
+/* Tabs */
+.el-tabs__item {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+.el-tabs__item.is-active {
+  color: var(--campus-primary) !important;
+}
+.el-tabs__active-bar {
+  background: linear-gradient(90deg, var(--campus-primary), var(--campus-pink)) !important;
+  height: 3px !important;
+  border-radius: 2px !important;
+}
+
+/* 空状态 */
+.el-empty__description {
+  color: var(--campus-text-secondary) !important;
+}
+
+/* 步骤条 */
+.el-steps {
+  --el-step-title-font-size: 14px;
+}
+
+/* 表单 */
+.el-form-item__label {
+  font-weight: 500 !important;
+  color: var(--campus-text);
+}
+
+/* 选择框 */
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: var(--campus-primary) !important;
+  border-color: var(--campus-primary) !important;
+}
+
+/* 评分 */
+.el-rate__icon {
+  font-size: 20px !important;
+}
+
+/* 数字输入框 */
+.el-input-number__increase,
+.el-input-number__decrease {
+  border-radius: 0 var(--campus-radius-sm) var(--campus-radius-sm) 0 !important;
+}
+
+/* 下拉菜单 */
+.el-dropdown-menu {
+  border-radius: var(--campus-radius-sm) !important;
+  border: none !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1) !important;
+  padding: 6px !important;
+}
+.el-dropdown-menu__item {
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-weight: 500 !important;
+}
+.el-dropdown-menu__item:hover {
+  background: linear-gradient(135deg, rgba(255, 126, 103, 0.08), rgba(253, 121, 168, 0.08)) !important;
+  color: var(--campus-primary) !important;
+}
+
+/* === 工具类 === */
+.campus-gradient-text {
+  background: linear-gradient(135deg, var(--campus-primary), var(--campus-pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.campus-card {
+  background: var(--campus-bg-card);
+  border-radius: var(--campus-radius);
+  box-shadow: var(--campus-shadow);
+  transition: all 0.3s ease;
+}
+.campus-card:hover {
+  box-shadow: var(--campus-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.campus-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--campus-text);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.campus-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(180deg, var(--campus-primary), var(--campus-pink));
+  border-radius: 2px;
+}
+
+.campus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 126, 103, 0.1);
+  color: var(--campus-primary);
+}
+
+/* 加载动画 */
+@keyframes campus-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes campus-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes campus-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(1deg); }
+  66% { transform: translateY(-4px) rotate(-1deg); }
+}
+@keyframes campus-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 骨架屏加载效果 */
+.campus-skeleton {
+  background: linear-gradient(90deg, #f0e6e0 25%, #f8f0ec 50%, #f0e6e0 75%);
+  background-size: 200% 100%;
+  animation: campus-shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}

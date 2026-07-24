@@ -3,27 +3,33 @@
     <div class="msg-container">
       <!-- 左侧会话列表 -->
       <div class="conv-list">
-        <h3>消息</h3>
+        <div class="conv-list-header">
+          <h3>💬 消息</h3>
+        </div>
         <div
           v-for="conv in conversations"
           :key="conv.user_id"
           :class="['conv-item', { active: currentChat?.user_id === conv.user_id }]"
           @click="selectConversation(conv)"
         >
+          <div class="conv-avatar">{{ conv.username?.[0] || '?' }}</div>
           <div class="conv-info">
-            <span class="conv-name">{{ conv.username }}</span>
-            <span class="conv-time">{{ formatTime(conv.last_time) }}</span>
+            <div class="conv-top">
+              <span class="conv-name">{{ conv.username }}</span>
+              <span class="conv-time">{{ formatTime(conv.last_time) }}</span>
+            </div>
+            <div class="conv-last">{{ conv.last_message }}</div>
           </div>
-          <div class="conv-last">{{ conv.last_message }}</div>
-          <el-badge v-if="conv.unread > 0" :value="conv.unread" class="conv-badge" />
+          <div v-if="conv.unread > 0" class="conv-badge">{{ conv.unread }}</div>
         </div>
-        <el-empty v-if="conversations.length === 0" description="暂无消息" :image-size="80" />
+        <el-empty v-if="conversations.length === 0" description="暂无消息" :image-size="60" />
       </div>
 
       <!-- 右侧聊天窗口 -->
       <div class="chat-area" v-if="currentChat">
         <div class="chat-header">
-          <span>与 {{ currentChat.username }} 的对话</span>
+          <div class="chat-header-avatar">{{ currentChat.username?.[0] || '?' }}</div>
+          <span>{{ currentChat.username }}</span>
         </div>
         <div class="chat-messages" ref="msgListRef">
           <div
@@ -36,17 +42,23 @@
           </div>
         </div>
         <div class="chat-input">
-          <el-input
+          <input
             v-model="newMessage"
             placeholder="输入消息..."
             @keyup.enter="sendMessage"
-            :maxlength="500"
+            maxlength="500"
+            class="chat-input-field"
           />
-          <el-button type="primary" @click="sendMessage" :disabled="!newMessage.trim()">发送</el-button>
+          <button class="send-btn" @click="sendMessage" :disabled="!newMessage.trim()">
+            发送
+          </button>
         </div>
       </div>
       <div class="chat-area empty-chat" v-else>
-        <el-empty description="选择一个会话开始聊天" :image-size="120" />
+        <div class="empty-chat-content">
+          <span class="empty-chat-icon">💬</span>
+          <p>选择一个会话开始聊天</p>
+        </div>
       </div>
     </div>
   </div>
@@ -175,87 +187,233 @@ onUnmounted(() => {
 .messages-page { padding: 0; }
 .msg-container {
   display: flex;
-  height: calc(100vh - 80px);
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  height: calc(100vh - 100px);
+  border: 1px solid rgba(240, 230, 224, 0.3);
+  border-radius: 16px;
   overflow: hidden;
   background: #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
 }
+
+/* ===== 左侧会话列表 ===== */
 .conv-list {
-  width: 280px;
-  border-right: 1px solid #e4e7ed;
+  width: 300px;
+  border-right: 1px solid #F5F0EC;
   overflow-y: auto;
   flex-shrink: 0;
 }
-.conv-list h3 {
-  padding: 16px;
+.conv-list-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #F5F0EC;
+}
+.conv-list-header h3 {
   margin: 0;
-  border-bottom: 1px solid #e4e7ed;
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2D3436;
 }
 .conv-item {
-  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #F8F4F0;
   position: relative;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
-.conv-item:hover { background: #f5f7fa; }
-.conv-item.active { background: #ecf5ff; }
+.conv-item:hover { background: #FFFAF8; }
+.conv-item.active { background: #FFF0EB; }
+.conv-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #A29BFE, #6C5CE7);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
 .conv-info {
-  display: flex; justify-content: space-between; align-items: center;
+  flex: 1;
+  min-width: 0;
 }
-.conv-name { font-weight: 600; font-size: 14px; }
-.conv-time { font-size: 11px; color: #999; }
+.conv-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.conv-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2D3436;
+}
+.conv-time {
+  font-size: 11px;
+  color: #B2BEC3;
+}
 .conv-last {
-  font-size: 12px; color: #999; margin-top: 4px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 12px;
+  color: #8892A0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.conv-badge { position: absolute; top: 12px; right: 16px; }
+.conv-badge {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  min-width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 6px;
+}
 
+/* ===== 右侧聊天区 ===== */
 .chat-area {
-  flex: 1; display: flex; flex-direction: column;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .empty-chat {
-  justify-content: center; align-items: center;
+  justify-content: center;
+  align-items: center;
+}
+.empty-chat-content {
+  text-align: center;
+  color: #8892A0;
+}
+.empty-chat-icon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 12px;
+}
+.empty-chat-content p {
+  font-size: 14px;
+  margin: 0;
 }
 .chat-header {
-  padding: 14px 20px;
-  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #F5F0EC;
   font-weight: 600;
   font-size: 15px;
+  color: #2D3436;
+}
+.chat-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #A29BFE, #6C5CE7);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
 }
 .chat-messages {
-  flex: 1; overflow-y: auto; padding: 16px 20px;
-  display: flex; flex-direction: column; gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #FFFAF8;
 }
-.chat-bubble { max-width: 70%; }
+.chat-bubble {
+  max-width: 70%;
+  animation: fadeInUp 0.3s ease;
+}
 .chat-bubble.mine { align-self: flex-end; }
 .chat-bubble.theirs { align-self: flex-start; }
 .bubble-content {
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 12px 18px;
+  border-radius: 16px;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   word-break: break-word;
 }
 .mine .bubble-content {
-  background: #409eff; color: #fff;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(255, 126, 103, 0.15);
 }
 .theirs .bubble-content {
-  background: #f0f0f0; color: #333;
+  background: #fff;
+  color: #2D3436;
   border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .bubble-time {
-  font-size: 11px; color: #999; margin-top: 4px;
+  font-size: 11px;
+  color: #B2BEC3;
+  margin-top: 4px;
+  padding: 0 4px;
 }
 .mine .bubble-time { text-align: right; }
 
+/* ===== 输入区 ===== */
 .chat-input {
-  display: flex; gap: 8px;
-  padding: 12px 20px;
-  border-top: 1px solid #e4e7ed;
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid #F5F0EC;
+  background: #fff;
 }
-.chat-input .el-input { flex: 1; }
+.chat-input-field {
+  flex: 1;
+  padding: 10px 18px;
+  border: 1px solid rgba(240, 230, 224, 0.4);
+  border-radius: 14px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s ease;
+  background: #FFF8F5;
+}
+.chat-input-field:focus {
+  border-color: #FF7E67;
+  box-shadow: 0 0 0 3px rgba(255, 126, 103, 0.1);
+}
+.chat-input-field::placeholder {
+  color: #B2BEC3;
+}
+.send-btn {
+  padding: 10px 28px;
+  background: linear-gradient(135deg, #FF7E67, #FD79A8);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(255, 126, 103, 0.3);
+}
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>
